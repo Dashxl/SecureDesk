@@ -1,7 +1,8 @@
 import { Settings, ExternalLink, ShieldCheck, Lock, Activity } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
-import { getSetupStatus } from '@/lib/auth-config';
+import { getSetupStatus, safeGetSession } from '@/lib/auth-config';
 import { getSlackConnectedAccountStatus } from '@/lib/connected-accounts';
+import { getRecommendedFgaModel, getRecommendedFgaTuples } from '@/lib/fga';
 
 function StatusPill({ ready }: { ready: boolean }) {
   return (
@@ -48,6 +49,9 @@ export default async function SettingsPage({
 }) {
   const setup = getSetupStatus();
   const slackStatus = await getSlackConnectedAccountStatus();
+  const session = await safeGetSession();
+  const currentUserId = session?.user?.sub || '';
+  const fgaTuples = currentUserId ? getRecommendedFgaTuples(currentUserId) : [];
   const slackParam = typeof searchParams?.slack === 'string' ? searchParams.slack : '';
   const slackMessage =
     typeof searchParams?.message === 'string' ? decodeURIComponent(searchParams.message) : '';
@@ -182,22 +186,29 @@ export default async function SettingsPage({
             steps={[
               'Create an FGA store.',
               'Create a model with type user and type tool, with relation invoke.',
-              'Create tuples like user:YOUR_AUTH0_SUB invoke tool:read_slack and user:YOUR_AUTH0_SUB invoke tool:post_slack_message.',
+              'Create tuples for read_slack and post_slack_message using your real Auth0 subject shown below.',
               'Copy FGA_API_URL, FGA_STORE_ID, FGA_MODEL_ID, FGA_CLIENT_ID, and FGA_CLIENT_SECRET into .env.local.',
               'Restart the dev server after saving the variables.',
             ]}
           />
 
           <pre className="overflow-x-auto rounded-xl border border-surface-300 bg-surface-100/50 p-4 text-xs text-surface-600">
-{`model
-  schema 1.1
-
-type user
-
-type tool
-  relations
-    define invoke: [user]`}
+{getRecommendedFgaModel()}
           </pre>
+
+          <div className="rounded-xl border border-surface-300 bg-surface-100/50 p-4 text-xs text-surface-600 space-y-2">
+            <p>Current Auth0 subject: {currentUserId || 'Sign in to reveal your subject.'}</p>
+            <p>Recommended tuple entries:</p>
+            {fgaTuples.length > 0 ? (
+              <pre className="overflow-x-auto whitespace-pre-wrap text-[11px] leading-6">
+                {fgaTuples.join('\n')}
+              </pre>
+            ) : (
+              <p className="text-[11px]">Sign in first so SecureDesk can show the exact tuples for your user.</p>
+            )}
+            <p>Optional issuer override: {process.env.FGA_API_TOKEN_ISSUER || 'https://fga.us.auth0.com/'}</p>
+            <p>Optional audience override: {process.env.FGA_API_AUDIENCE || 'https://api.us1.fga.dev/'}</p>
+          </div>
 
           <a
             href="https://openfga.dev/docs/getting-started/configure-model"

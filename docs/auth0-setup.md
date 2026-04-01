@@ -111,6 +111,10 @@ Then copy these values into `.env.local`:
 - `FGA_MODEL_ID`
 - `FGA_CLIENT_ID`
 - `FGA_CLIENT_SECRET`
+- `FGA_API_TOKEN_ISSUER` (optional, default `https://fga.us.auth0.com/`)
+- `FGA_API_AUDIENCE` (optional, default `https://api.us1.fga.dev/`)
+
+SecureDesk now shows your exact `Auth0 sub` and the recommended tuple lines in `/dashboard/settings`, so you can copy them directly into FGA.
 
 ## 7. CIBA
 

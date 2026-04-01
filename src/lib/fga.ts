@@ -2,6 +2,9 @@ import { OpenFgaClient, CredentialsMethod } from '@openfga/sdk';
 
 let fgaClient: OpenFgaClient | null = null;
 
+const DEFAULT_FGA_API_TOKEN_ISSUER = 'https://fga.us.auth0.com/';
+const DEFAULT_FGA_API_AUDIENCE = 'https://api.us1.fga.dev/';
+
 export function isFGAConfigured() {
   return Boolean(
     process.env.FGA_API_URL &&
@@ -10,6 +13,18 @@ export function isFGAConfigured() {
       process.env.FGA_CLIENT_ID &&
       process.env.FGA_CLIENT_SECRET
   );
+}
+
+export function getFgaApiTokenIssuer() {
+  return process.env.FGA_API_TOKEN_ISSUER || DEFAULT_FGA_API_TOKEN_ISSUER;
+}
+
+export function getFgaApiAudience() {
+  return process.env.FGA_API_AUDIENCE || DEFAULT_FGA_API_AUDIENCE;
+}
+
+export function getToolObjectId(action: string) {
+  return `tool:${action}`;
 }
 
 export function getFGAClient(): OpenFgaClient {
@@ -31,8 +46,8 @@ export function getFGAClient(): OpenFgaClient {
     credentials: {
       method: CredentialsMethod.ClientCredentials,
       config: {
-        apiTokenIssuer: 'fga.us.auth0.com',
-        apiAudience: 'https://api.us1.fga.dev/',
+        apiTokenIssuer: getFgaApiTokenIssuer(),
+        apiAudience: getFgaApiAudience(),
         clientId,
         clientSecret,
       },
@@ -60,4 +75,22 @@ export async function checkPermission(
     console.warn('FGA check failed, defaulting to denied', error);
     return false;
   }
+}
+
+export function getRecommendedFgaModel() {
+  return `model
+  schema 1.1
+
+type user
+
+type tool
+  relations
+    define invoke: [user]`;
+}
+
+export function getRecommendedFgaTuples(userId: string) {
+  return [
+    `user:${userId} invoke tool:read_slack`,
+    `user:${userId} invoke tool:post_slack_message`,
+  ];
 }
