@@ -1,0 +1,61 @@
+src/app/api/chat/route.ts(74,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '() => Promise<any[]>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(86,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '({ to, subject, body }: { to: any; subject: any; body: any; }) => Promise<{ success: boolean; message: string; }>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(86,27): error TS7031: Binding element 'to' implicitly has an 'any' type.
+src/app/api/chat/route.ts(86,31): error TS7031: Binding element 'subject' implicitly has an 'any' type.
+src/app/api/chat/route.ts(86,40): error TS7031: Binding element 'body' implicitly has an 'any' type.
+src/app/api/chat/route.ts(94,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '() => Promise<any[]>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(105,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '({ channel, text }: { channel: any; text: any; }) => Promise<{ success: boolean; message: string; }>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(105,27): error TS7031: Binding element 'channel' implicitly has an 'any' type.
+src/app/api/chat/route.ts(105,36): error TS7031: Binding element 'text' implicitly has an 'any' type.
+src/app/api/chat/route.ts(113,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '() => Promise<any[]>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(125,9): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '({ projectKey, summary, description }: { projectKey: any; summary: any; description: any; }) => Promise<{ success: boolean; issueId: string; }>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(125,27): error TS7031: Binding element 'projectKey' implicitly has an 'any' type.
+src/app/api/chat/route.ts(125,39): error TS7031: Binding element 'summary' implicitly has an 'any' type.
+src/app/api/chat/route.ts(125,48): error TS7031: Binding element 'description' implicitly has an 'any' type.
+src/app/api/chat/route.ts(133,17): error TS2551: Property 'toDataStreamResponse' does not exist on type 'StreamTextResult<{ summarize_emails: Tool<any, any[]>; send_email: Tool<any, any>; list_slack_channels: Tool<any, any[]>; post_slack: Tool<any, any>; read_jira: Tool<any, any[]>; create_jira: Tool<...>; }, Output<...>>'. Did you mean 'toTextStreamResponse'?
+src/app/dashboard/page.tsx(18,11): error TS2339: Property 'append' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/page.tsx(18,19): error TS2339: Property 'isLoading' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/page.tsx(19,5): error TS2353: Object literal may only specify known properties, and 'api' does not exist in type 'UseChatOptions<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/page.tsx(20,18): error TS7006: Parameter 'response' implicitly has an 'any' type.
+src/app/dashboard/page.tsx(24,30): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/app/dashboard/page.tsx(41,19): error TS2339: Property 'content' does not exist on type '{ message: UIMessage<unknown, UIDataTypes, UITools>; messages: UIMessage<unknown, UIDataTypes, UITools>[]; isAbort: boolean; isDisconnect: boolean; isError: boolean; finishReason?: FinishReason | undefined; }'.
+src/app/dashboard/page.tsx(44,28): error TS2339: Property 'content' does not exist on type '{ message: UIMessage<unknown, UIDataTypes, UITools>; messages: UIMessage<unknown, UIDataTypes, UITools>[]; isAbort: boolean; isDisconnect: boolean; isError: boolean; finishReason?: FinishReason | undefined; }'.
+src/app/dashboard/page.tsx(103,28): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/page.tsx(30,37): error TS2322: Type '{ children: Element; variant: "primary"; asChild: true; }' is not assignable to type 'IntrinsicAttributes & ButtonProps'.
+  Property 'asChild' does not exist on type 'IntrinsicAttributes & ButtonProps'.
+src/app/page.tsx(52,108): error TS2322: Type '{ children: Element; variant: "primary"; size: "lg"; className: string; asChild: true; }' is not assignable to type 'IntrinsicAttributes & ButtonProps'.
+  Property 'asChild' does not exist on type 'IntrinsicAttributes & ButtonProps'.
+src/components/chat/ChatMessage.tsx(10,72): error TS2749: 'ChatMessage' refers to a value, but is being used as a type here. Did you mean 'typeof ChatMessage'?
+src/components/chat/StreamingIndicator.tsx(24,9): error TS2322: Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'Transition<any> | undefined'.
+  Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'TransitionWithValueOverrides<any>'.
+    Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'ValueAnimationTransition<any>'.
+      Types of property 'ease' are incompatible.
+        Type 'string' is not assignable to type 'Easing | Easing[] | undefined'.
+src/components/chat/StreamingIndicator.tsx(31,9): error TS2322: Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'Transition<any> | undefined'.
+  Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'TransitionWithValueOverrides<any>'.
+    Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'ValueAnimationTransition<any>'.
+      Types of property 'ease' are incompatible.
+        Type 'string' is not assignable to type 'Easing | Easing[] | undefined'.
+src/components/chat/StreamingIndicator.tsx(38,9): error TS2322: Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'Transition<any> | undefined'.
+  Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'TransitionWithValueOverrides<any>'.
+    Type '{ delay: number; duration: number; repeat: number; repeatType: "reverse"; ease: string; }' is not assignable to type 'ValueAnimationTransition<any>'.
+      Types of property 'ease' are incompatible.
+        Type 'string' is not assignable to type 'Easing | Easing[] | undefined'.
+src/lib/audit-logger.ts(2,10): error TS2459: Module '"@/types/audit"' declares 'RiskLevel' locally, but it is not exported.
+src/lib/audit-logger.ts(2,21): error TS2459: Module '"@/types/audit"' declares 'ActionStatus' locally, but it is not exported.
+src/lib/audit-logger.ts(2,35): error TS2459: Module '"@/types/audit"' declares 'ServiceType' locally, but it is not exported.
+src/lib/auth0.ts(12,5): error TS2353: Object literal may only specify known properties, and 'logout' does not exist in type 'DeepPartial<{ postLogoutRedirect: string; callback: string; } & { login: string; }>'.
+src/lib/openai.ts(11,3): error TS2353: Object literal may only specify known properties, and 'compatibility' does not exist in type 'OpenAIProviderSettings'.

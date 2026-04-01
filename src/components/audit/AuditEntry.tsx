@@ -1,0 +1,67 @@
+import React from 'react';
+import { AuditEntry as AuditEntryType } from '@/types/audit';
+import { RiskBadge } from '../risk/RiskBadge';
+import { ServiceIcon } from '../services/ServiceIcon';
+import { formatDistanceToNow, format } from 'date-fns';
+import { CheckCircle2, XCircle, Clock, CheckSquare } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip';
+
+export function AuditEntry({ entry }: { entry: AuditEntryType }) {
+  const timeAgo = formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true });
+  const exactTime = format(new Date(entry.createdAt), 'PPpp');
+
+  const StatusIcon = {
+    pending: <Clock className="w-4 h-4 text-amber-500" />,
+    approved: <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
+    rejected: <XCircle className="w-4 h-4 text-red-500" />,
+    executed: <CheckSquare className="w-4 h-4 text-brand-500" />,
+    failed: <XCircle className="w-4 h-4 text-red-500" />
+  }[entry.status];
+
+  return (
+    <div className="p-4 border border-surface-200 bg-surface-100 rounded-xl hover:bg-surface-200/50 transition-colors">
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <div className="flex items-center gap-2">
+          <div className="bg-surface-300 p-1.5 rounded-lg border border-surface-400">
+            <ServiceIcon service={entry.service} />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-semibold text-sm text-surface-950 capitalize leading-tight">
+              {entry.action.replace(/_/g, ' ')}
+            </span>
+            <Tooltip text={exactTime}>
+              <span className="text-xs text-surface-600 font-medium cursor-default">
+                {timeAgo}
+              </span>
+            </Tooltip>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <RiskBadge level={entry.riskLevel} />
+          <Tooltip text={`Status: ${entry.status}`}>
+            <div className="p-1 rounded bg-surface-200">
+              {StatusIcon}
+            </div>
+          </Tooltip>
+        </div>
+      </div>
+      
+      <p className="text-sm text-surface-800 line-clamp-2 mt-2 leading-relaxed">
+        {entry.details}
+      </p>
+
+      {entry.approvedBy && (
+        <div className="mt-3 text-xs text-surface-600 flex items-center gap-1.5 font-medium border-t border-surface-300 pt-2">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          <span>Approved by <span className="text-surface-900">{entry.approvedBy}</span></span>
+          {entry.approvedAt && (
+            <span className="text-surface-500 ml-auto">
+              {format(new Date(entry.approvedAt), 'HH:mm')}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

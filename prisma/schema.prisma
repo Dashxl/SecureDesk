@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model AuditEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  service     String   // gmail | slack | jira
+  riskLevel   String   // low | high
+  status      String   // pending | approved | rejected | executed | failed
+  details     String   @db.Text
+  approvedBy  String?
+  approvedAt  DateTime?
+  executedAt  DateTime?
+  metadata    String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([service])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ConnectedService {
+  id           String   @id @default(cuid())
+  userId       String
+  service      String   // gmail | slack | jira
+  connectionId String
+  status       String   @default("connected") // connected | disconnected | error
+  lastUsed     DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, service])
+  @@index([userId])
+}

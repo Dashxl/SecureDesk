@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@layer base {
+  :root {
+    --surface-0: #09090b;
+    --surface-50: #0a0a0f;
+    --surface-100: #111118;
+    --surface-200: #18181b;
+    --surface-300: #1e1e24;
+    --surface-400: #27272a;
+    --surface-500: #3f3f46;
+    --surface-600: #52525b;
+    --surface-700: #71717a;
+    --surface-800: #a1a1aa;
+    --surface-900: #d4d4d8;
+    --surface-950: #fafafa;
+    --brand: #6366f1;
+    --brand-light: #818cf8;
+    --brand-dark: #4f46e5;
+    --risk-low: #10b981;
+    --risk-low-bg: rgba(16, 185, 129, 0.1);
+    --risk-high: #f59e0b;
+    --risk-high-bg: rgba(245, 158, 11, 0.1);
+    --risk-critical: #ef4444;
+    --success: #22c55e;
+    --error: #ef4444;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-surface-0 text-surface-900 font-sans antialiased;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgba(99, 102, 241, 0.3);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--surface-500);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--surface-600);
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-surface-100/80 backdrop-blur-xl border border-surface-300/50 rounded-xl;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+  .glass-card-hover:hover {
+    @apply border-surface-400/80 shadow-lg;
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.05);
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-brand-300;
+  }
+
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(99,102,241,0));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .shimmer {
+    @apply relative overflow-hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  .risk-badge-low {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold;
+    background: var(--risk-low-bg);
+    color: var(--risk-low);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+
+  .risk-badge-high {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold;
+    background: var(--risk-high-bg);
+    color: var(--risk-high);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200;
+    @apply bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700;
+    @apply shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200;
+    @apply text-surface-800 hover:bg-surface-300/50 active:bg-surface-400/50;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200;
+    @apply bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20;
+  }
+
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200;
+    @apply bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg text-sm transition-all duration-200;
+    @apply bg-surface-200 border border-surface-400 text-surface-950;
+    @apply placeholder:text-surface-600;
+    @apply focus:outline-none focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/20;
+  }
+}
