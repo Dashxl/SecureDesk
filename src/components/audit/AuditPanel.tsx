@@ -3,11 +3,12 @@
 import React, { useEffect } from 'react';
 import { useAuditStore } from '@/store/audit-store';
 import { AuditEntry } from './AuditEntry';
-import { ShieldCheck, Loader2 } from 'lucide-react';
-import { Skeleton } from '../ui/Skeleton';
+import { ShieldCheck } from 'lucide-react';
+import Image from 'next/image';
+import LogoMark from '@/app/img/Logo.jpg';
 
 export function AuditPanel() {
-  const { logs, isLoading, setLogs, setLoading, setError, filterRiskType, filterService } = useAuditStore();
+  const { logs, isLoading, upsertLogs, setLoading, setError, filterRiskType, filterService } = useAuditStore();
 
   useEffect(() => {
     async function fetchLogs() {
@@ -16,7 +17,9 @@ export function AuditPanel() {
         const res = await fetch('/api/audit');
         if (!res.ok) throw new Error('Failed to load logs');
         const data = await res.json();
-        setLogs(data);
+        if (Array.isArray(data) && data.length > 0) {
+          upsertLogs(data);
+        }
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -24,7 +27,7 @@ export function AuditPanel() {
       }
     }
     fetchLogs();
-  }, [setLoading, setLogs, setError]);
+  }, [setLoading, upsertLogs, setError]);
 
   const filteredLogs = logs.filter(log => {
     if (filterRiskType && log.riskLevel !== filterRiskType) return false;
@@ -33,12 +36,28 @@ export function AuditPanel() {
   });
 
   return (
-    <div className="w-80 border-l border-surface-300 bg-surface-50 p-4 flex flex-col h-full overflow-hidden shrink-0">
-      <div className="flex items-center gap-2 px-2 py-3 mb-4 border-b border-surface-300">
-        <div className="p-1.5 bg-brand-500/10 rounded-lg text-brand-400">
-          <ShieldCheck className="w-5 h-5" />
+    <div className="hidden h-full w-96 shrink-0 flex-col overflow-hidden bg-[#11192B] px-4 py-4 shadow-[-18px_0_40px_rgba(5,8,18,0.18)] lg:flex">
+      <div className="mb-4 rounded-[1.35rem] border border-white/8 bg-[#1a2040] px-4 py-3 shadow-[0_16px_36px_rgba(4,7,17,0.18)]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-white/10 bg-[#202857]">
+            <Image src={LogoMark} alt="SecureDesk mark" className="h-9 w-9 object-cover" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-display text-xl font-bold leading-none text-white">Trust Center</h2>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-brand-200/90">Live Security Feed</p>
+          </div>
         </div>
-        <h2 className="font-semibold text-lg text-white">Trust Center</h2>
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="rounded-[1.1rem] border border-white/8 bg-[#283052] px-3 py-3">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-surface-700">Events</div>
+            <div className="mt-1 text-2xl font-bold text-white">{logs.length}</div>
+          </div>
+          <div className="rounded-[1.1rem] border border-brand-400/18 bg-[#261751] px-3 py-3">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-brand-200">Policy</div>
+            <div className="mt-1 text-sm font-semibold text-white">Token Vault + FGA</div>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">

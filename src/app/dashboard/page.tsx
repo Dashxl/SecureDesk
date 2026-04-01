@@ -2,6 +2,7 @@
 
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { v4 as uuidv4 } from 'uuid';
+import Image from 'next/image';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ApprovalModal } from '@/components/risk/ApprovalModal';
@@ -10,6 +11,7 @@ import { useApprovalStore } from '@/store/approval-store';
 import { RiskClassification } from '@/types/risk';
 import { AuditEntry } from '@/types/audit';
 import { useAuditStore } from '@/store/audit-store';
+import LogoMark from '@/app/img/Logo.jpg';
 
 type ChatResponse = {
   reply?: string;
@@ -161,9 +163,17 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full w-full mx-auto relative">
-      <div className="flex items-center justify-between p-4 border-b border-surface-200 bg-surface-50/50 backdrop-blur">
-        <h1 className="text-lg font-semibold text-surface-900">Secure AI Assistant</h1>
-        <div className="text-xs text-brand-400 font-mono tracking-wide px-3 py-1 bg-brand-500/10 rounded-full border border-brand-500/20">
+      <div className="flex items-center justify-between border-b border-white/10 bg-[#121a2d]/82 p-4 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#202857]">
+            <Image src={LogoMark} alt="SecureDesk mark" className="h-11 w-11 object-cover" />
+          </div>
+          <div>
+            <h1 className="font-display text-xl font-bold text-white">Secure AI Assistant</h1>
+            <p className="text-xs uppercase tracking-[0.24em] text-surface-700">Delegated actions with visible trust controls</p>
+          </div>
+        </div>
+        <div className="text-xs text-brand-100 font-mono tracking-wide px-3 py-1.5 bg-brand-500/15 rounded-full border border-brand-400/20">
           Deterministic Runtime Connected
         </div>
       </div>

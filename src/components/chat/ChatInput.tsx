@@ -32,28 +32,28 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="relative p-4 border-t border-surface-200 bg-surface-50/95 backdrop-blur">
-      <div className="max-w-4xl mx-auto flex items-end gap-3 relative rounded-xl border border-surface-300 bg-surface-100 p-2 shadow-sm focus-within:ring-2 focus-within:ring-brand-500/50 focus-within:border-brand-500 transition-all">
+    <div className="relative border-t border-white/10 bg-[#121a2d]/90 p-4 backdrop-blur">
+      <div className="max-w-4xl mx-auto flex items-end gap-3 relative rounded-2xl border border-white/10 bg-white/5 p-2.5 shadow-sm focus-within:border-brand-400/40 focus-within:ring-2 focus-within:ring-brand-500/20 transition-all">
         <textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Try: list my Slack channels or post a message to #engineering..."
-          className="flex-1 max-h-32 min-h-[44px] bg-transparent resize-none outline-none text-surface-950 placeholder-surface-600 p-2 text-[15px]"
+          placeholder="Try: list my Slack channels or post a message to #general-securedesk..."
+          className="flex-1 max-h-32 min-h-[44px] bg-transparent resize-none outline-none text-surface-950 placeholder:text-surface-700 p-2 text-[15px]"
           disabled={disabled}
           rows={1}
         />
         <button
           onClick={handleSend}
           disabled={!input.trim() || disabled}
-          className="shrink-0 p-2.5 rounded-lg bg-surface-200 text-brand-400 hover:text-brand-300 hover:bg-surface-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all mb-0.5"
+          className="shrink-0 mb-0.5 rounded-xl border border-brand-400/20 bg-brand-500/15 p-2.5 text-brand-100 transition-all hover:bg-brand-500/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           <SendHorizontal className="w-5 h-5" />
         </button>
       </div>
-      <div className="max-w-4xl mx-auto mt-2 text-center text-[10px] text-surface-600 font-medium tracking-wide">
-        ZERO-COST DEMO MODE: AUTH0 TOKEN VAULT + SLACK. FGA ENFORCED WHEN CONFIGURED. CIBA IS PHASE 2.
+      <div className="max-w-4xl mx-auto mt-3 text-center text-[10px] text-surface-700 font-medium tracking-[0.22em] uppercase">
+        Zero-cost live demo • Auth0 Token Vault • Slack • FGA • Audit trail
       </div>
     </div>
   );
