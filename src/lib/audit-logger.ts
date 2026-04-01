@@ -40,6 +40,9 @@ export async function logAction(entry: {
   status: ActionStatus;
   details: string;
   metadata?: string;
+  approvedBy?: string | null;
+  approvedAt?: Date | null;
+  executedAt?: Date | null;
 }): Promise<AuditEntry> {
   const now = new Date();
 
@@ -53,9 +56,9 @@ export async function logAction(entry: {
       status: entry.status,
       details: entry.details,
       metadata: entry.metadata ?? null,
-      approvedBy: null,
-      approvedAt: null,
-      executedAt: null,
+      approvedBy: entry.approvedBy ?? null,
+      approvedAt: entry.approvedAt ?? null,
+      executedAt: entry.executedAt ?? null,
       createdAt: now,
       updatedAt: now,
     });
@@ -71,6 +74,9 @@ export async function logAction(entry: {
         status: entry.status,
         details: entry.details,
         metadata: entry.metadata,
+        approvedBy: entry.approvedBy,
+        approvedAt: entry.approvedAt,
+        executedAt: entry.executedAt,
       },
     });
 
@@ -86,9 +92,9 @@ export async function logAction(entry: {
       status: entry.status,
       details: entry.details,
       metadata: entry.metadata ?? null,
-      approvedBy: null,
-      approvedAt: null,
-      executedAt: null,
+      approvedBy: entry.approvedBy ?? null,
+      approvedAt: entry.approvedAt ?? null,
+      executedAt: entry.executedAt ?? null,
       createdAt: now,
       updatedAt: now,
     });

@@ -1,11 +1,129 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { useAuditStore } from '@/store/audit-store';
+import { AuditEntry } from '@/components/audit/AuditEntry';
 
 export default function AuditPage() {
-  const { logs } = useAuditStore();
+  const {
+    logs,
+    isLoading,
+    error,
+    upsertLogs,
+    setLoading,
+    setError,
+    filterRiskType,
+    filterService,
+    filterStatus,
+    setFilterRiskType,
+    setFilterService,
+    setFilterStatus,
+  } = useAuditStore();
+
+  useEffect(() => {
+    async function fetchLogs() {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/audit');
+        if (!res.ok) throw new Error('Failed to load logs');
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          upsertLogs(data);
+        }
+      } catch (fetchError) {
+        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load logs');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void fetchLogs();
+  }, [setError, setLoading, upsertLogs]);
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      if (filterRiskType && log.riskLevel !== filterRiskType) {
+        return false;
+      }
+
+      if (filterService && log.service !== filterService) {
+        return false;
+      }
+
+      if (filterStatus && log.status !== filterStatus) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [filterRiskType, filterService, filterStatus, logs]);
+
+  const counts = useMemo(() => {
+    return {
+      total: logs.length,
+      highRisk: logs.filter((log) => log.riskLevel === 'high').length,
+      executed: logs.filter((log) => log.status === 'executed').length,
+      failed: logs.filter((log) => log.status === 'failed').length,
+    };
+  }, [logs]);
+
+  const exportCsv = () => {
+    if (filteredLogs.length === 0) {
+      return;
+    }
+
+    const csvRows = [
+      [
+        'id',
+        'createdAt',
+        'service',
+        'action',
+        'riskLevel',
+        'status',
+        'userId',
+        'approvedBy',
+        'approvedAt',
+        'executedAt',
+        'details',
+        'metadata',
+      ],
+      ...filteredLogs.map((log) => [
+        log.id,
+        log.createdAt,
+        log.service,
+        log.action,
+        log.riskLevel,
+        log.status,
+        log.userId,
+        log.approvedBy ?? '',
+        log.approvedAt ?? '',
+        log.executedAt ?? '',
+        log.details,
+        log.metadata ?? '',
+      ]),
+    ];
+
+    const csv = csvRows
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+          .join(',')
+      )
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+    link.href = url;
+    link.download = `securedesk-audit-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
   
   return (
     <div className="flex flex-col h-full w-full p-6 space-y-6">
@@ -16,12 +134,88 @@ export default function AuditPage() {
       <p className="text-surface-600 max-w-2xl">
         Every action taken by the AI is logged precisely with timestamps, risk level, status, and approval tracking. The panel on the right shows a live feed. Here you can search and export all events.
       </p>
-      
-      <div className="flex items-center justify-center flex-1 rounded-2xl border border-surface-300 bg-surface-200/50">
-        <div className="text-center text-surface-600">
-          <p className="font-medium text-lg mb-2">Total Events Logged: {logs.length}</p>
-          <p className="text-sm">Extended filtering and export coming soon.</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="rounded-2xl border border-surface-300 bg-surface-100/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-surface-600">Total</p>
+          <p className="mt-2 text-2xl font-semibold text-surface-900">{counts.total}</p>
         </div>
+        <div className="rounded-2xl border border-surface-300 bg-surface-100/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-surface-600">High Risk</p>
+          <p className="mt-2 text-2xl font-semibold text-surface-900">{counts.highRisk}</p>
+        </div>
+        <div className="rounded-2xl border border-surface-300 bg-surface-100/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-surface-600">Executed</p>
+          <p className="mt-2 text-2xl font-semibold text-surface-900">{counts.executed}</p>
+        </div>
+        <div className="rounded-2xl border border-surface-300 bg-surface-100/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-surface-600">Failed</p>
+          <p className="mt-2 text-2xl font-semibold text-surface-900">{counts.failed}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <select
+          value={filterService ?? ''}
+          onChange={(event) => setFilterService(event.target.value || null)}
+          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900"
+        >
+          <option value="">All services</option>
+          <option value="slack">Slack</option>
+          <option value="gmail">Gmail</option>
+          <option value="jira">Jira</option>
+        </select>
+        <select
+          value={filterRiskType ?? ''}
+          onChange={(event) => setFilterRiskType(event.target.value || null)}
+          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900"
+        >
+          <option value="">All risk levels</option>
+          <option value="low">Low risk</option>
+          <option value="high">High risk</option>
+        </select>
+        <select
+          value={filterStatus ?? ''}
+          onChange={(event) => setFilterStatus(event.target.value || null)}
+          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900"
+        >
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="executed">Executed</option>
+          <option value="failed">Failed</option>
+        </select>
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={filteredLogs.length === 0}
+          className="rounded-xl border border-surface-300 bg-surface-100 px-4 py-2 text-sm font-medium text-surface-900 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Export CSV
+        </button>
+      </div>
+
+      <div className="flex-1 rounded-2xl border border-surface-300 bg-surface-100/50 p-4">
+        {isLoading ? (
+          <div className="text-center text-surface-600 py-12 text-sm">Loading audit entries...</div>
+        ) : error ? (
+          <div className="text-center text-red-300 py-12 text-sm">{error}</div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="text-center text-surface-600 py-12">
+            <p className="font-medium text-lg mb-2">No matching audit events yet.</p>
+            <p className="text-sm">Run a Slack read or write action to populate the trail.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-surface-300 bg-surface-100 px-4 py-3 text-xs text-surface-600">
+              This view keeps the current session trail even when persistence is unavailable. Export the CSV before recording your demo if you want a portable copy.
+            </div>
+            {filteredLogs.map((log) => (
+              <AuditEntry key={log.id} entry={log} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

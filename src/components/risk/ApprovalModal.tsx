@@ -53,7 +53,7 @@ export function ApprovalModal({
           <div>
             <h3 className="text-surface-900 font-medium text-sm mb-1">Authorization Required</h3>
             <p className="text-surface-600 text-sm leading-relaxed">
-              This action requires explicit approval via Auth0 CIBA because it modifies or transmits data outside of SecureDesk.
+              This action requires explicit approval because it modifies or transmits data outside of SecureDesk.
             </p>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { getSlackToken, readSlackChannels, postSlackMessage } from '@/lib/servic
 import { getCurrentUserAccessToken } from '@/lib/auth0';
 import { isAuth0Configured, safeGetSession } from '@/lib/auth-config';
 import { NextResponse } from 'next/server';
+import { AuditEntry } from '@/types/audit';
 
 export const maxDuration = 30;
 
@@ -156,9 +157,29 @@ export async function POST(req: Request) {
   const classification = classifyAction(latestMessageText);
   const highRisk = isHighRisk(classification);
   const userId = session.user.sub ?? session.user.email ?? 'unknown-user';
+  const approverId = session.user.email ?? session.user.sub ?? 'current-user';
+
+  if (highRisk && approvalStatus === 'rejected' && classification) {
+    const rejectedLog = await logAction({
+      userId,
+      action: classification.action,
+      service: classification.service,
+      riskLevel: classification.level,
+      status: 'rejected',
+      details: `User rejected ${classification.action} before execution.`,
+      metadata: classification.dataAffected,
+      approvedBy: approverId,
+      approvedAt: new Date(),
+    });
+
+    return NextResponse.json({
+      reply: 'Action rejected. No external action was executed.',
+      auditEntries: [rejectedLog],
+    });
+  }
 
   if (highRisk && approvalStatus !== 'approved' && classification) {
-    await logAction({
+    const pendingLog = await logAction({
       userId,
       action: classification.action,
       service: classification.service,
@@ -173,6 +194,7 @@ export async function POST(req: Request) {
       approvalRequired: {
         classification,
       },
+      auditEntries: [pendingLog],
     });
   }
 
@@ -186,7 +208,7 @@ export async function POST(req: Request) {
       const slackToken = await getSlackProviderTokenForCurrentUser();
       const channels = await readSlackChannels(slackToken);
 
-      await logAction({
+      const executedLog = await logAction({
         userId,
         action: 'read_slack',
         service: 'slack',
@@ -198,6 +220,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         reply: formatChannelsResponse(channels, permission.note ?? undefined),
+        auditEntries: [executedLog],
       });
     }
 
@@ -208,10 +231,28 @@ export async function POST(req: Request) {
         return NextResponse.json({ reply: permission.note! });
       }
 
+      const auditEntries: AuditEntry[] = [];
+
+      if (approvalStatus === 'approved' && classification) {
+        const approvedLog = await logAction({
+          userId,
+          action: classification.action,
+          service: classification.service,
+          riskLevel: classification.level,
+          status: 'approved',
+          details: `User approved ${classification.action}. SecureDesk is executing the request.`,
+          metadata: classification.dataAffected,
+          approvedBy: approverId,
+          approvedAt: new Date(),
+        });
+
+        auditEntries.push(approvedLog);
+      }
+
       const slackToken = await getSlackProviderTokenForCurrentUser();
       const result = await postSlackMessage(slackToken, slackPost.channel, slackPost.text);
 
-      await logAction({
+      const executedLog = await logAction({
         userId,
         action: 'post_slack_message',
         service: 'slack',
@@ -219,7 +260,11 @@ export async function POST(req: Request) {
         status: 'executed',
         details: `Posted a Slack message to ${slackPost.channel}.`,
         metadata: slackPost.text,
+        approvedBy: approvalStatus === 'approved' ? approverId : null,
+        approvedAt: approvalStatus === 'approved' ? new Date() : null,
+        executedAt: new Date(),
       });
+      auditEntries.push(executedLog);
 
       return NextResponse.json({
         reply: [
@@ -230,6 +275,7 @@ export async function POST(req: Request) {
         ]
           .filter(Boolean)
           .join('\n\n'),
+        auditEntries,
       });
     }
 
@@ -247,7 +293,7 @@ export async function POST(req: Request) {
         : 'Unknown deterministic runtime error while processing the Slack request.';
 
     if (classification) {
-      await logAction({
+      const failedLog = await logAction({
         userId,
         action: classification.action,
         service: classification.service,
@@ -255,6 +301,17 @@ export async function POST(req: Request) {
         status: 'failed',
         details,
         metadata: classification.dataAffected,
+        approvedBy: approvalStatus === 'approved' ? approverId : null,
+        approvedAt: approvalStatus === 'approved' ? new Date() : null,
+      });
+
+      return NextResponse.json({
+        reply: [
+          'SecureDesk could not complete that action.',
+          details,
+          'If this happened during Slack access, check the connected account, the Token Vault exchange, and the Slack scopes.',
+        ].join('\n\n'),
+        auditEntries: [failedLog],
       });
     }
 

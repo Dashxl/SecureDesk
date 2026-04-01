@@ -51,17 +51,43 @@ export function AuditEntry({ entry }: { entry: AuditEntryType }) {
         {entry.details}
       </p>
 
-      {entry.approvedBy && (
-        <div className="mt-3 text-xs text-surface-600 flex items-center gap-1.5 font-medium border-t border-surface-300 pt-2">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Approved by <span className="text-surface-900">{entry.approvedBy}</span></span>
-          {entry.approvedAt && (
-            <span className="text-surface-500 ml-auto">
-              {format(new Date(entry.approvedAt), 'HH:mm')}
-            </span>
-          )}
+      {entry.metadata && (
+        <div className="mt-3 rounded-lg border border-surface-300 bg-surface-200/60 px-3 py-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-surface-600">
+            Metadata
+          </div>
+          <div className="mt-1 text-sm text-surface-800 break-words">{entry.metadata}</div>
         </div>
       )}
+
+      <div className="mt-3 space-y-2 border-t border-surface-300 pt-3 text-xs">
+        {entry.approvedBy && (
+          <div className="text-surface-600 flex items-center gap-1.5 font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            <span>
+              Approved by <span className="text-surface-900">{entry.approvedBy}</span>
+            </span>
+            {entry.approvedAt && (
+              <span className="text-surface-500 ml-auto">
+                {format(new Date(entry.approvedAt), 'HH:mm')}
+              </span>
+            )}
+          </div>
+        )}
+
+        {entry.executedAt && (
+          <div className="text-surface-600 flex items-center gap-1.5 font-medium">
+            <CheckSquare className="w-3.5 h-3.5 text-brand-500" />
+            <span>
+              Executed at <span className="text-surface-900">{format(new Date(entry.executedAt), 'HH:mm:ss')}</span>
+            </span>
+          </div>
+        )}
+
+        <div className="text-surface-500 font-medium">
+          User: <span className="text-surface-700">{entry.userId}</span>
+        </div>
+      </div>
     </div>
   );
 }
