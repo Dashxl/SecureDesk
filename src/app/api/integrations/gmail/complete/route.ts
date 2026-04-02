@@ -1,11 +1,11 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { completeSlackConnectedAccount } from '@/lib/connected-accounts';
+import { completeGmailConnectedAccount } from '@/lib/connected-accounts';
 import { isAuth0Configured, safeGetSession } from '@/lib/auth-config';
 import { markServiceConnected } from '@/lib/connected-service-store';
 
-const AUTH_SESSION_COOKIE = 'slack_connect_auth_session';
-const STATE_COOKIE = 'slack_connect_state';
+const AUTH_SESSION_COOKIE = 'gmail_connect_auth_session';
+const STATE_COOKIE = 'gmail_connect_state';
 
 export async function POST(req: Request) {
   if (!isAuth0Configured()) {
@@ -32,26 +32,30 @@ export async function POST(req: Request) {
 
   if (!authSession || !expectedState) {
     return NextResponse.json(
-      { error: 'Slack connection session expired. Start the Connect Slack flow again.' },
+      { error: 'Gmail connection session expired. Start the Connect Gmail flow again.' },
       { status: 400 }
     );
   }
 
   if (state && state !== expectedState) {
-    return NextResponse.json({ error: 'Slack connection state mismatch.' }, { status: 400 });
+    return NextResponse.json({ error: 'Gmail connection state mismatch.' }, { status: 400 });
   }
 
   const baseUrl = process.env.AUTH0_BASE_URL || new URL(req.url).origin;
-  const redirectUri = `${baseUrl}/dashboard/settings/slack-callback`;
+  const redirectUri = `${baseUrl}/dashboard/settings/gmail-callback`;
 
   try {
-    await completeSlackConnectedAccount({
+    await completeGmailConnectedAccount({
       authSession,
       connectCode,
       redirectUri,
     });
     const userId = session.user.sub || session.user.email || 'unknown-user';
-    await markServiceConnected(userId, 'slack', process.env.SLACK_CONNECTION_NAME || process.env.SLACK_CONNECTION_ID || 'slack');
+    await markServiceConnected(
+      userId,
+      'gmail',
+      process.env.GMAIL_CONNECTION_NAME || process.env.GMAIL_CONNECTION_ID || 'google-oauth2'
+    );
 
     const response = NextResponse.json({ success: true });
     response.cookies.set(AUTH_SESSION_COOKIE, '', {
@@ -76,7 +80,7 @@ export async function POST(req: Request) {
         error:
           error instanceof Error
             ? error.message
-            : 'Unable to complete the Slack connected account flow.',
+            : 'Unable to complete the Gmail connected account flow.',
       },
       { status: 500 }
     );

@@ -83,7 +83,7 @@ export async function getTokenForService(
   if (!response.ok) {
     const err = await response.text();
     throw new Error(
-      `Token Vault exchange failed. Confirm Token Vault grant type is enabled and Slack is connected through Auth0. ${err}`
+      `Token Vault exchange failed. Confirm Token Vault grant type is enabled and the requested provider is connected through Auth0. ${err}`
     );
   }
 

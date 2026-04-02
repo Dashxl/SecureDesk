@@ -6,7 +6,7 @@ interface ChatState {
   messages: ChatMessage[];
   pendingActions: PendingAction[];
   isStreaming: boolean;
-  addMessage: (message: Omit<ChatMessage, 'id' | 'createdAt'>) => void;
+  addMessage: (message: Omit<ChatMessage, 'id' | 'createdAt'>) => string;
   updateMessage: (id: string, partial: Partial<ChatMessage>) => void;
   addPendingAction: (action: Omit<PendingAction, 'id' | 'createdAt'>) => string;
   resolvePendingAction: (id: string, status: 'approved' | 'rejected') => void;
@@ -19,9 +19,13 @@ export const useChatStore = create<ChatState>((set) => ({
   pendingActions: [],
   isStreaming: false,
 
-  addMessage: (msg) => set((state) => ({
-    messages: [...state.messages, { ...msg, id: uuidv4(), createdAt: new Date() }]
-  })),
+  addMessage: (msg) => {
+    const id = uuidv4();
+    set((state) => ({
+      messages: [...state.messages, { ...msg, id, createdAt: new Date() }]
+    }));
+    return id;
+  },
 
   updateMessage: (id, partial) => set((state) => ({
     messages: state.messages.map(m => m.id === id ? { ...m, ...partial } : m)

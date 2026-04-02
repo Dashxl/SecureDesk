@@ -92,5 +92,7 @@ export function getRecommendedFgaTuples(userId: string) {
   return [
     `user:${userId} invoke tool:read_slack`,
     `user:${userId} invoke tool:post_slack_message`,
+    `user:${userId} invoke tool:read_emails`,
+    `user:${userId} invoke tool:send_email`,
   ];
 }

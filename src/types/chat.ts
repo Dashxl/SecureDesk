@@ -8,6 +8,9 @@ export interface ChatMessage {
   risk?: RiskClassification;
   pendingApproval?: boolean;
   approvalId?: string;
+  cibaPending?: boolean;
+  cibaRequestId?: string;
+  cibaInterval?: number;
 }
 
 export interface PendingAction {

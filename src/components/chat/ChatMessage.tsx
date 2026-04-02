@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { ChatMessage as ChatMessageType } from '@/types/chat';
 import { RiskBadge } from '../risk/RiskBadge';
 import { Avatar } from '../ui/Avatar';
-import { ShieldAlert, Bot } from 'lucide-react';
+import { ShieldAlert, Bot, Loader2 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approval-store';
 import { Button } from '../ui/Button';
 
@@ -53,6 +53,21 @@ export function ChatMessage({ message, userPic, userName }: { message: ChatMessa
                  Review & Approve
                </Button>
              </div>
+          )}
+
+          {message.cibaPending && (
+            <div className="mt-4 rounded-lg border border-brand-400/20 bg-brand-500/10 p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-brand-300" />
+                <span className="text-sm font-semibold text-brand-200">
+                  Waiting for your approval
+                </span>
+              </div>
+              <p className="text-xs text-surface-700">
+                Check your Auth0 Guardian notification or external approval channel. SecureDesk will
+                continue automatically after approval.
+              </p>
+            </div>
           )}
         </div>
       </div>

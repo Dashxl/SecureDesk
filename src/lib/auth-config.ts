@@ -35,7 +35,12 @@ export function isTokenVaultConfigured() {
     hasValue(process.env.AUTH0_AUDIENCE) &&
     hasValue(process.env.AUTH0_TOKEN_VAULT_CLIENT_ID) &&
     hasValue(process.env.AUTH0_TOKEN_VAULT_CLIENT_SECRET) &&
-    (hasValue(process.env.SLACK_CONNECTION_NAME) || hasValue(process.env.SLACK_CONNECTION_ID))
+    (
+      hasValue(process.env.SLACK_CONNECTION_NAME) ||
+      hasValue(process.env.SLACK_CONNECTION_ID) ||
+      hasValue(process.env.GMAIL_CONNECTION_NAME) ||
+      hasValue(process.env.GMAIL_CONNECTION_ID)
+    )
   );
 }
 
@@ -62,6 +67,8 @@ export function getSetupStatus() {
     issuerPathMismatch: hasIssuerPathMismatch(),
     slackConnectionName: process.env.SLACK_CONNECTION_NAME || '',
     slackConnectionId: process.env.SLACK_CONNECTION_ID || '',
+    gmailConnectionName: process.env.GMAIL_CONNECTION_NAME || '',
+    gmailConnectionId: process.env.GMAIL_CONNECTION_ID || '',
     audience: process.env.AUTH0_AUDIENCE || '',
   };
 }

@@ -1,32 +1,40 @@
 # Auth0 Setup Guide for SecureDesk
 
-This guide is written for the current SecureDesk demo path:
+This guide matches the current SecureDesk implementation:
 
 - real Auth0 login
-- real Slack integration through Token Vault
-- optional real Auth0 FGA checks
-- optional CIBA phase 2
-- deterministic command handling with zero LLM cost
+- real Slack Connected Account through Token Vault
+- real Gmail Connected Account through Token Vault
+- Auth0 FGA enforcement
+- CIBA support with in-app fallback
+- Gemini Flash intent parsing on top of the deterministic runtime
 
-## 1. Regular Web Application
+## 1. Create the Regular Web Application
 
 Create a `Regular Web Application` in Auth0 for the Next.js app.
 
 Use these local URLs during development:
 
-- Allowed Callback URLs: `http://localhost:3000/api/auth/callback`
-- Allowed Logout URLs: `http://localhost:3000`
-- Allowed Web Origins: `http://localhost:3000`
+- Allowed Callback URLs:
+  - `http://localhost:3000/api/auth/callback`
+  - `http://localhost:3000/dashboard/settings/slack-callback`
+  - `http://localhost:3000/dashboard/settings/gmail-callback`
+- Allowed Logout URLs:
+  - `http://localhost:3000`
+- Allowed Web Origins:
+  - `http://localhost:3000`
 
-## 2. Custom API
+## 2. Create the custom backend API
 
-Create a custom API in `Applications -> APIs`.
+Create a custom API in:
+
+`Applications -> APIs`
 
 Recommended identifier:
 
 `https://api.securedesk.com`
 
-That same value should be used in `.env.local` as:
+Use that same value in `.env.local` as:
 
 `AUTH0_AUDIENCE=https://api.securedesk.com`
 
@@ -42,51 +50,89 @@ Enable:
 - Refresh Token
 - Token Vault
 
-If the `Token Vault` grant type is missing, ask the hackathon organizers or Auth0 contact whether your tenant has Token Vault enabled.
+If the `Token Vault` grant type is missing, the tenant likely does not have Token Vault enabled. Ask the hackathon organizers or Auth0 contact.
 
-## 4. Authorize the My Account API
+## 4. Enable MRRT and authorize the My Account API
 
 Open:
 
-`Applications -> APIs -> Auth0 My Account API`
-
-Authorize your SecureDesk application for the scopes needed by Connected Accounts and Token Vault.
-
-Also open:
-
 `Applications -> Applications -> SecureDesk -> Multi-Resource Refresh Token`
 
-Edit the configuration and enable `My Account API`.
+Enable:
 
-## 5. Connect Slack
+- `Auth0 My Account API`
+
+Then open:
+
+`Applications -> APIs -> Auth0 My Account API`
+
+Authorize the SecureDesk application with these scopes:
+
+- `create:me:connected_accounts`
+- `read:me:connected_accounts`
+- `delete:me:connected_accounts`
+
+## 5. Create the Token Vault Custom API Client
+
+This is separate from the web app credentials.
+
+Open:
+
+`Applications -> APIs -> securedesk-api`
+
+Then:
+
+1. Click `Add Application`
+2. Create a client for Token Vault exchange
+3. Copy its `Client ID` and `Client Secret`
+4. Put them in:
+   - `AUTH0_TOKEN_VAULT_CLIENT_ID`
+   - `AUTH0_TOKEN_VAULT_CLIENT_SECRET`
+
+## 6. Configure Slack Connected Accounts
 
 Open:
 
 `Authentication -> Social Connections -> Slack`
 
-What to check:
+Check all of the following:
 
-0. If Slack does not exist yet, create the connection first from `Authentication -> Social Connections`.
-1. The Slack connection is enabled for the SecureDesk application.
-2. The Slack app inside your workspace has the scopes required for the demo.
-3. `Connected Accounts for Token Vault` is enabled if the option is available.
+1. The Slack connection is enabled for `SecureDesk`
+2. Purpose includes `Connected Accounts for Token Vault`
+3. The Slack app has:
+   - `channels:read`
+   - `groups:read`
+   - `chat:write`
+4. The Slack app uses token rotation
+5. The Slack app redirect URL includes:
+   - `https://YOUR_TENANT.us.auth0.com/login/callback`
 
-Fastest hackathon path:
+Then in SecureDesk, use the `Connect Slack` button in Settings.
 
-- Use Slack as the login connection for the demo user as well.
-- That keeps the first live SecureDesk slice much simpler because the same Auth0 user already has the Slack connected account available to Token Vault.
+## 7. Configure Gmail Connected Accounts
 
-Recommended scopes for the first demo slice:
+Open:
 
-- `channels:read`
-- `groups:read`
-- `chat:write`
+`Authentication -> Social Connections -> Google`
 
-If you do not see `Connected Accounts for Token Vault`, that usually means the tenant does not have the feature enabled yet.
+Check all of the following:
 
-## 6. FGA
+1. The Google connection is enabled for `SecureDesk`
+2. It is configured for Connected Accounts / Token Vault
+3. The Google scopes cover:
+   - `https://www.googleapis.com/auth/gmail.readonly`
+   - `https://www.googleapis.com/auth/gmail.send`
+4. Offline access / refresh-token support is enabled where required by the provider setup
 
-Create a minimal model:
+Then in SecureDesk, use the `Connect Gmail` button in Settings.
+
+## 8. Configure FGA
+
+Open the Auth0 FGA dashboard:
+
+`https://dashboard.fga.dev`
+
+Create a store, then create this minimal model:
 
 ```fga
 model
@@ -99,39 +145,54 @@ type tool
     define invoke: [user]
 ```
 
-Create tuples like:
+Then add tuples for the current user:
 
-- `user:auth0|YOUR_USER_ID invoke tool:read_slack`
-- `user:auth0|YOUR_USER_ID invoke tool:post_slack_message`
+- `user:YOUR_AUTH0_SUB invoke tool:read_slack`
+- `user:YOUR_AUTH0_SUB invoke tool:post_slack_message`
+- `user:YOUR_AUTH0_SUB invoke tool:read_emails`
+- `user:YOUR_AUTH0_SUB invoke tool:send_email`
 
-Then copy these values into `.env.local`:
+SecureDesk shows the exact tuple lines for the signed-in user in `/dashboard/settings`.
+
+Put these values into `.env.local`:
 
 - `FGA_API_URL`
 - `FGA_STORE_ID`
 - `FGA_MODEL_ID`
 - `FGA_CLIENT_ID`
 - `FGA_CLIENT_SECRET`
-- `FGA_API_TOKEN_ISSUER` (optional, default `https://fga.us.auth0.com/`)
-- `FGA_API_AUDIENCE` (optional, default `https://api.us1.fga.dev/`)
+- `FGA_API_TOKEN_ISSUER`
+- `FGA_API_AUDIENCE`
 
-SecureDesk now shows your exact `Auth0 sub` and the recommended tuple lines in `/dashboard/settings`, so you can copy them directly into FGA.
+## 9. Configure CIBA and Guardian
 
-## 7. CIBA
-
-CIBA is optional for the first real slice.
+CIBA is the preferred approval path for high-risk actions.
 
 If your tenant supports it:
 
-1. Enable the `CIBA` grant type on the application.
-2. Enable Guardian Push.
-3. Enroll your demo user in Guardian.
-4. Fill `AUTH0_CIBA_CLIENT_ID`, `AUTH0_CIBA_CLIENT_SECRET`, and `AUTH0_CIBA_AUDIENCE`.
+1. Enable the `CIBA` grant type on the SecureDesk application
+2. Enable Guardian Push under:
+   - `Security -> Multi-factor Auth`
+3. Enroll the demo user in Guardian
+4. Fill:
+   - `AUTH0_CIBA_CLIENT_ID`
+   - `AUTH0_CIBA_CLIENT_SECRET`
+   - `AUTH0_CIBA_AUDIENCE`
 
-If the option is not visible, treat CIBA as a phase-2 enhancement instead of blocking Token Vault.
+If the tenant does not expose CIBA, SecureDesk will continue to work with the in-app approval fallback.
 
-## 8. Local environment reminder
+## 10. Gemini Flash
 
-`AUTH0_ISSUER_BASE_URL` must be the tenant root, not the Management API path.
+SecureDesk uses Gemini Flash only for intent parsing. It does not replace the deterministic runtime.
+
+Add to `.env.local`:
+
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL=gemini-2.0-flash`
+
+## 11. Local environment reminder
+
+`AUTH0_ISSUER_BASE_URL` must be the tenant root.
 
 Correct:
 
@@ -140,3 +201,19 @@ Correct:
 Incorrect:
 
 `https://YOUR_TENANT.us.auth0.com/api/v2/`
+
+## 12. Final verification
+
+Before recording the demo:
+
+1. Connect Slack in Settings
+2. Connect Gmail in Settings
+3. Confirm FGA tuples are in place
+4. Test:
+   - `List my Slack channels`
+   - `Post a message to #general-securedesk saying: Hello from SecureDesk`
+   - `List my unread emails`
+   - `Summarize my emails from today`
+   - `Send an email to teammate@example.com saying: Hello from SecureDesk`
+5. Open `Audit Log`
+6. Export CSV

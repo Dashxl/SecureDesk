@@ -15,12 +15,13 @@ export async function GET(request: NextRequest, context: { params: { auth0: stri
         const loginPurpose = loginUrl.searchParams.get('purpose');
         const returnTo = loginUrl.searchParams.get('returnTo') || undefined;
 
-        if (loginPurpose === 'connect-slack') {
+        if (loginPurpose === 'connect-slack' || loginPurpose === 'connect-gmail') {
           return auth0.handleLogin(req, ctx, {
             returnTo,
             authorizationParams: {
               audience: getMyAccountAudience(),
-              scope: 'openid profile email offline_access create:me:connected_accounts read:me:connected_accounts',
+              scope:
+                'openid profile email offline_access create:me:connected_accounts read:me:connected_accounts delete:me:connected_accounts',
             },
           });
         }

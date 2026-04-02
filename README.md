@@ -1,39 +1,86 @@
 # SecureDesk
 
-SecureDesk is a corporate AI agent built for the Auth0 hackathon "Authorized to Act: Auth0 for AI Agents".
+SecureDesk is a corporate AI agent built for the Auth0 hackathon **Authorized to Act: Auth0 for AI Agents**.
 
-The project explores a safer model for enterprise AI assistants: the agent can act on behalf of a real user, but only inside explicit security boundaries. Instead of handing raw third-party credentials to the model, SecureDesk uses Auth0 as the control plane for authentication, delegated access, and approval flows.
+The project demonstrates how an assistant can act on behalf of a real user across external systems without exposing third-party tokens to the frontend, without relying on broad all-or-nothing permissions, and without executing sensitive actions invisibly.
 
-## What the project does
+SecureDesk is built with:
 
-Users interact with SecureDesk through a chat interface. In the current zero-cost demo mode, SecureDesk uses deterministic command handling instead of a paid LLM API while preserving the same delegated-action security story.
+- Next.js 14
+- TypeScript
+- Tailwind CSS
+- Auth0
+- Auth0 Token Vault
+- Auth0 Connected Accounts
+- Auth0 Fine-Grained Authorization (FGA)
+- Auth0 CIBA support with in-app fallback
+- Gemini Flash for intent parsing
 
-- Low-risk actions such as listing Slack channels can proceed immediately.
-- High-risk actions such as posting to Slack require explicit approval before execution.
-- Every meaningful action is recorded in the audit trail.
+## What SecureDesk does
 
-## Hackathon architecture
+Users interact with SecureDesk through a chat interface. Natural language requests are first mapped to a known action through Gemini Flash, and then SecureDesk routes them through a deterministic runtime that enforces the existing security controls.
 
-SecureDesk is designed around three Auth0 capabilities:
+Current supported live actions:
 
-- `Token Vault`: external provider tokens are stored in Auth0, not in the frontend or app database.
-- `Fine-Grained Authorization (FGA)`: users can be allowed or denied per tool, not only by broad role.
-- `CIBA`: optional phase-2 approval path for stronger out-of-band confirmation.
+- List Slack channels
+- Post a Slack message
+- List unread Gmail messages
+- Summarize today's Gmail messages
+- Send a Gmail message
 
-## Current demo slice
+## Security architecture
 
-The repository is now aligned around a narrow but real demo:
+SecureDesk is intentionally built around Auth0 as the control plane.
 
-- Auth0 login for a real user session
-- Slack as the first live external integration
-- Auth0 Token Vault exchange path for Slack
-- Optional Auth0 FGA checks before Slack tools run
-- Approval interception for high-risk Slack actions
-- Deterministic command parsing with zero LLM cost
+### 1. Auth0 Token Vault
 
-Gmail and Jira remain scaffolded in the codebase, but they are intentionally not presented as live integrations until they are connected through Token Vault as well.
+Slack and Gmail are connected through Auth0 Connected Accounts and Token Vault. SecureDesk never stores provider tokens in the frontend and never manages raw third-party credentials manually.
 
-For the fastest live demo path, enable Slack as the Auth0 social connection and sign in with Slack for the demo user.
+### 2. Fine-Grained Authorization
+
+Every tool action can be allowed or denied through Auth0 FGA. The runtime checks the user against `tool:*` permissions before executing Slack or Gmail actions.
+
+### 3. High-risk approvals
+
+High-risk actions such as posting to Slack or sending an email are intercepted before execution. SecureDesk initiates a CIBA flow when the tenant supports it and falls back to the existing in-app approval experience otherwise.
+
+### 4. Auditability
+
+Every action is written into the audit trail with service, action, risk level, user, metadata, timestamps, approval state, and export support.
+
+## Current live demo slice
+
+The repository now contains a real end-to-end slice, not just mocked UX:
+
+- Auth0 login and session management
+- Slack connected through Token Vault
+- Gmail connected through Token Vault
+- FGA enforcement for action-level authorization
+- Deterministic runtime for execution
+- Gemini Flash as the intent parsing layer
+- High-risk approval path
+- Real-time Trust Center sidebar
+- Audit Log page with CSV export
+
+## Product flow
+
+1. The user signs in with Auth0.
+2. The user connects Slack and Gmail through Connected Accounts.
+3. The user asks SecureDesk to perform an action in natural language.
+4. Gemini Flash maps the request to a supported action.
+5. SecureDesk checks FGA.
+6. SecureDesk classifies the action as low-risk or high-risk.
+7. If the action is high-risk, SecureDesk requires approval.
+8. SecureDesk exchanges the Auth0 token through Token Vault and calls the external provider.
+9. SecureDesk records the result in the audit trail.
+
+## Example prompts
+
+- `List my Slack channels`
+- `Post a message to #general-securedesk saying: Hello from SecureDesk`
+- `List my unread emails`
+- `Summarize my emails from today`
+- `Send an email to teammate@example.com saying: Hello from SecureDesk`
 
 ## Local setup
 
@@ -51,15 +98,15 @@ npm install
 npm run postinstall
 ```
 
-4. Run the dev server:
+4. Run the development server:
 
 ```bash
 npm run dev
 ```
 
-## Environment variables
+## Required environment variables
 
-These are the main values you need:
+### Auth0
 
 - `AUTH0_SECRET`
 - `AUTH0_BASE_URL`
@@ -67,15 +114,44 @@ These are the main values you need:
 - `AUTH0_CLIENT_ID`
 - `AUTH0_CLIENT_SECRET`
 - `AUTH0_AUDIENCE`
+
+### Token Vault exchange client
+
 - `AUTH0_TOKEN_VAULT_CLIENT_ID`
 - `AUTH0_TOKEN_VAULT_CLIENT_SECRET`
-- `SLACK_CONNECTION_NAME` (preferred)
+
+### Connected Account connections
+
+- `SLACK_CONNECTION_NAME`
 - `SLACK_CONNECTION_ID` (legacy fallback)
+- `GMAIL_CONNECTION_NAME`
+- `GMAIL_CONNECTION_ID`
+
+### CIBA
+
+- `AUTH0_CIBA_CLIENT_ID`
+- `AUTH0_CIBA_CLIENT_SECRET`
+- `AUTH0_CIBA_AUDIENCE`
+
+### FGA
+
 - `FGA_API_URL`
 - `FGA_STORE_ID`
 - `FGA_MODEL_ID`
 - `FGA_CLIENT_ID`
 - `FGA_CLIENT_SECRET`
+- `FGA_API_TOKEN_ISSUER`
+- `FGA_API_AUDIENCE`
+
+### Gemini Flash
+
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL`
+
+### Database
+
+- `POSTGRES_PRISMA_URL`
+- `POSTGRES_URL_NON_POOLING`
 
 Important:
 
@@ -84,29 +160,22 @@ Important:
 
 ## Auth0 setup checklist
 
-The most important requirement for the hackathon is Token Vault. Configure the project in this order:
+Use `/dashboard/settings` inside the app as the live operational checklist.
 
-1. Create a Regular Web Application in Auth0 for the Next.js app.
-2. Create a custom API and use its identifier as `AUTH0_AUDIENCE`.
-3. In the application grant types, enable `Authorization Code`, `Refresh Token`, and `Token Vault`.
-4. In the application `Multi-Resource Refresh Token` settings, enable `My Account API`.
-5. Enable and connect Slack through Auth0 Connected Accounts / Token Vault.
-6. Optionally create a minimal Auth0 FGA model for `tool:read_slack` and `tool:post_slack_message`.
-7. Treat CIBA as an optional phase 2 if your tenant supports it.
+The high-level order is:
 
-You can also open the in-app Settings page, which now acts as a live setup checklist.
+1. Create a Regular Web Application in Auth0.
+2. Create a custom API and set it as `AUTH0_AUDIENCE`.
+3. Enable `Authorization Code`, `Refresh Token`, and `Token Vault`.
+4. Enable MRRT and authorize `Auth0 My Account API`.
+5. Configure Slack and Google social connections for Connected Accounts.
+6. Create the Token Vault Custom API Client used for exchange.
+7. Configure Auth0 FGA and add tuples for the current user.
+8. Optionally configure CIBA and Guardian.
 
-## Supported commands
-
-The current zero-cost demo mode supports these commands without any external LLM:
-
-- `List my Slack channels`
-- `Show my Slack channels`
-- `Post a message to #general saying: Hello from SecureDesk`
+Detailed setup instructions live in [docs/auth0-setup.md](./docs/auth0-setup.md).
 
 ## Recommended FGA model
-
-For the first real demo slice, this minimal model is enough:
 
 ```fga
 model
@@ -123,18 +192,28 @@ Example tuples:
 
 - `user:auth0|abc123 invoke tool:read_slack`
 - `user:auth0|abc123 invoke tool:post_slack_message`
+- `user:auth0|abc123 invoke tool:read_emails`
+- `user:auth0|abc123 invoke tool:send_email`
+
+SecureDesk also shows the exact tuple values for the signed-in user in `/dashboard/settings`.
 
 ## Verification
 
-Use these commands before recording the demo or shipping to judges:
+Before recording the demo or deploying to judges, run:
 
 ```bash
 npm run lint
 npm run build
 ```
 
-## Notes for judges
+## Submission notes
 
-- The live security path in this repo is intentionally narrow so it can be real and auditable.
-- Slack is the first live integration.
-- Gmail and Jira remain visible as future integrations, but the app does not pretend they are already live.
+- Token Vault is active and used against real provider connections.
+- Slack and Gmail are both live integrations.
+- High-risk actions are approval-gated.
+- The audit trail is visible in-app and exportable.
+- Gemini Flash is used only as an intent parser; the deterministic runtime remains the execution layer.
+
+## Bonus blog post
+
+The repository includes a ready-to-publish blog post for the hackathon bonus submission in [BLOG.md](./BLOG.md).

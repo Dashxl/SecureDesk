@@ -18,6 +18,9 @@ type ChatResponse = {
   auditEntries?: AuditEntry[];
   approvalRequired?: {
     classification: RiskClassification;
+    mode?: 'modal' | 'ciba';
+    authReqId?: string;
+    interval?: number;
   };
 };
 
@@ -27,9 +30,91 @@ export default function DashboardPage() {
   const { activeApprovalId, setActiveApproval, isApproving, setIsApproving } = useApprovalStore();
   const { upsertLogs } = useAuditStore();
 
-  const activeApprovalMessage = storeMessages.find((message) => message.approvalId === activeApprovalId);
+  const activeApprovalMessage = storeMessages.find(
+    (message) => message.approvalId === activeApprovalId
+  );
 
-  async function runChatAction(content: string, approvalStatus?: 'approved' | 'rejected') {
+  async function pollCibaApproval(args: {
+    authReqId: string;
+    interval?: number;
+    originalContent: string;
+    waitingMessageId: string;
+  }) {
+    const pollDelay = Math.max((args.interval ?? 5) * 1000, 2500);
+
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, pollDelay));
+
+      const response = await fetch(
+        `/api/approvals/ciba/status?authReqId=${encodeURIComponent(args.authReqId)}`
+      );
+      const data = (await response.json()) as {
+        status?: 'pending' | 'approved' | 'rejected';
+        error?: string;
+      };
+
+      if (!response.ok) {
+        updateMessage(args.waitingMessageId, {
+          cibaPending: false,
+          content: data.error || 'SecureDesk could not verify the CIBA approval state.',
+        });
+        return;
+      }
+
+      if (data.status === 'pending') {
+        continue;
+      }
+
+      if (data.status === 'rejected') {
+        updateMessage(args.waitingMessageId, {
+          cibaPending: false,
+          content: 'Approval rejected through Auth0 Guardian. No external action was executed.',
+        });
+
+        try {
+          await runChatAction(args.originalContent, 'rejected', 'ciba');
+        } catch (error) {
+          addMessage({
+            role: 'assistant',
+            content:
+              error instanceof Error
+                ? error.message
+                : 'SecureDesk could not record the rejected action.',
+          });
+        }
+        return;
+      }
+
+      if (data.status === 'approved') {
+        updateMessage(args.waitingMessageId, {
+          cibaPending: false,
+          content: 'Approval received through Auth0 Guardian. Executing now...',
+        });
+
+        setStreaming(true);
+        try {
+          await runChatAction(args.originalContent, 'approved', 'ciba');
+        } catch (error) {
+          addMessage({
+            role: 'assistant',
+            content:
+              error instanceof Error
+                ? error.message
+                : 'SecureDesk could not complete the approved action.',
+          });
+        } finally {
+          setStreaming(false);
+        }
+        return;
+      }
+    }
+  }
+
+  async function runChatAction(
+    content: string,
+    approvalStatus?: 'approved' | 'rejected',
+    approvalMode?: 'modal' | 'ciba'
+  ) {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
@@ -38,6 +123,7 @@ export default function DashboardPage() {
       body: JSON.stringify({
         message: content,
         approvalStatus,
+        approvalMode,
       }),
     });
 
@@ -57,11 +143,31 @@ export default function DashboardPage() {
     }
 
     if (data?.approvalRequired) {
+      if (data.approvalRequired.mode === 'ciba' && data.approvalRequired.authReqId) {
+        const waitingMessageId = addMessage({
+          role: 'assistant',
+          content:
+            data.reply || 'Waiting for your approval - check your Auth0 Guardian notification.',
+          risk: data.approvalRequired.classification,
+          cibaPending: true,
+          cibaRequestId: data.approvalRequired.authReqId,
+          cibaInterval: data.approvalRequired.interval,
+        });
+        setStreaming(false);
+        void pollCibaApproval({
+          authReqId: data.approvalRequired.authReqId,
+          interval: data.approvalRequired.interval,
+          originalContent: content,
+          waitingMessageId,
+        });
+        return;
+      }
+
       const approvalId = uuidv4();
 
       addMessage({
         role: 'assistant',
-        content: 'Action requires security approval to proceed.',
+        content: data.reply || 'Action requires security approval to proceed.',
         risk: data.approvalRequired.classification,
         pendingApproval: true,
         approvalId,
@@ -90,9 +196,7 @@ export default function DashboardPage() {
       addMessage({
         role: 'assistant',
         content:
-          error instanceof Error
-            ? error.message
-            : 'SecureDesk could not process the request.',
+          error instanceof Error ? error.message : 'SecureDesk could not process the request.',
       });
     } finally {
       setStreaming(false);
@@ -125,7 +229,7 @@ export default function DashboardPage() {
 
     setStreaming(true);
     try {
-      await runChatAction(approvedActionContent, 'approved');
+      await runChatAction(approvedActionContent, 'approved', 'modal');
     } catch (error) {
       addMessage({
         role: 'assistant',
@@ -158,11 +262,11 @@ export default function DashboardPage() {
       return;
     }
 
-    void runChatAction(rejectedActionContent, 'rejected');
+    void runChatAction(rejectedActionContent, 'rejected', 'modal');
   };
 
   return (
-    <div className="flex flex-col h-full w-full mx-auto relative">
+    <div className="relative mx-auto flex h-full w-full flex-col">
       <div className="flex items-center justify-between border-b border-white/10 bg-[#121a2d]/82 p-4 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#202857]">
@@ -170,10 +274,12 @@ export default function DashboardPage() {
           </div>
           <div>
             <h1 className="font-display text-xl font-bold text-white">Secure AI Assistant</h1>
-            <p className="text-xs uppercase tracking-[0.24em] text-surface-700">Delegated actions with visible trust controls</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-surface-700">
+              Delegated actions with visible trust controls
+            </p>
           </div>
         </div>
-        <div className="text-xs text-brand-100 font-mono tracking-wide px-3 py-1.5 bg-brand-500/15 rounded-full border border-brand-400/20">
+        <div className="rounded-full border border-brand-400/20 bg-brand-500/15 px-3 py-1.5 font-mono text-xs tracking-wide text-brand-100">
           Deterministic Runtime Connected
         </div>
       </div>
