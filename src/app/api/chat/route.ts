@@ -217,8 +217,15 @@ function formatTodaySummaryResponse(summary: string, emailsCount: number, fgaNot
 
 function getCibaBindingMessage(classification: NonNullable<RiskClassification>) {
   const core = `${classification.service}:${classification.action}`;
-  const detail = classification.dataAffected.replace(/\s+/g, ' ').slice(0, 32);
-  return `${core} ${detail}`.slice(0, 60);
+  let detail = classification.dataAffected.replace(/\s+/g, ' ').slice(0, 32);
+  
+  // Auth0 binding_message restricts allowed characters.
+  // Generally allowed: alphanumeric, spaces, and + - _ . , : #
+  // The @ sign in emails (e.g. gmail_send) will cause an invalid_request error.
+  detail = detail.replace(/@/g, '_at_');
+  
+  const rawMsg = `${core} ${detail}`.slice(0, 60);
+  return rawMsg.replace(/[^a-zA-Z0-9+\-_.,:# ]/g, '');
 }
 
 async function evaluateToolPermission(userId: string, action: string) {
