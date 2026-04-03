@@ -13,7 +13,7 @@ export async function initiateCIBARequest(params: {
     body: new URLSearchParams({
       client_id: clientId!,
       client_secret: clientSecret!,
-      login_hint: JSON.stringify({ format: 'iss_sub', iss: issuer!, sub: params.userId }),
+      login_hint: JSON.stringify({ format: 'iss_sub', iss: issuer!.endsWith('/') ? issuer! : issuer! + '/', sub: params.userId }),
       scope: params.scope || 'openid',
       binding_message: params.bindingMessage,
       audience: process.env.AUTH0_CIBA_AUDIENCE || process.env.AUTH0_AUDIENCE || '',
