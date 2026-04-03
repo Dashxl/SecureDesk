@@ -1,35 +1,60 @@
-import { prisma } from './prisma';
+import { sql } from '@/lib/db';
 import { RiskLevel, ActionStatus, ServiceType, AuditEntry } from '@/types/audit';
 
-function toAuditEntry(entry: {
-  id: string;
-  userId: string;
-  action: string;
-  service: string;
-  riskLevel: string;
-  status: string;
+type StoredAuditMetadata = {
   details: string;
+  metadataText?: string | null;
   approvedBy?: string | null;
-  approvedAt?: Date | null;
-  executedAt?: Date | null;
-  metadata?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}): AuditEntry {
-  return {
-    ...entry,
-    riskLevel: entry.riskLevel as RiskLevel,
-    status: entry.status as ActionStatus,
-    service: entry.service as ServiceType,
-    createdAt: entry.createdAt.toISOString(),
-    updatedAt: entry.updatedAt.toISOString(),
-    approvedAt: entry.approvedAt?.toISOString() ?? null,
-    executedAt: entry.executedAt?.toISOString() ?? null,
-  };
+  approvedAt?: string | null;
+  executedAt?: string | null;
+};
+
+type AuditLogRow = {
+  id: string;
+  user_id: string;
+  action_type: string;
+  service: string;
+  risk_level: string;
+  status: string;
+  metadata: StoredAuditMetadata | string | null;
+  timestamp: string | Date;
+};
+
+function parseStoredAuditMetadata(value: AuditLogRow['metadata']) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as StoredAuditMetadata;
+    } catch {
+      return null;
+    }
+  }
+
+  return value;
 }
 
-function isDatabaseConfigured() {
-  return Boolean(process.env.POSTGRES_PRISMA_URL && process.env.POSTGRES_URL_NON_POOLING);
+function toAuditEntry(row: AuditLogRow): AuditEntry {
+  const metadata = parseStoredAuditMetadata(row.metadata);
+  const createdAt = new Date(row.timestamp).toISOString();
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    action: row.action_type,
+    service: row.service as ServiceType,
+    riskLevel: row.risk_level as RiskLevel,
+    status: row.status as ActionStatus,
+    details: metadata?.details || row.action_type,
+    approvedBy: metadata?.approvedBy ?? null,
+    approvedAt: metadata?.approvedAt ?? null,
+    executedAt: metadata?.executedAt ?? null,
+    metadata: metadata?.metadataText ?? null,
+    createdAt,
+    updatedAt: createdAt,
+  };
 }
 
 export async function logAction(entry: {
@@ -44,78 +69,44 @@ export async function logAction(entry: {
   approvedAt?: Date | null;
   executedAt?: Date | null;
 }): Promise<AuditEntry> {
-  const now = new Date();
+  const storedMetadata: StoredAuditMetadata = {
+    details: entry.details,
+    metadataText: entry.metadata ?? null,
+    approvedBy: entry.approvedBy ?? null,
+    approvedAt: entry.approvedAt?.toISOString() ?? null,
+    executedAt: entry.executedAt?.toISOString() ?? null,
+  };
 
-  if (!isDatabaseConfigured()) {
-    return toAuditEntry({
-      id: `ephemeral-${crypto.randomUUID()}`,
-      userId: entry.userId,
-      action: entry.action,
-      service: entry.service,
-      riskLevel: entry.riskLevel,
-      status: entry.status,
-      details: entry.details,
-      metadata: entry.metadata ?? null,
-      approvedBy: entry.approvedBy ?? null,
-      approvedAt: entry.approvedAt ?? null,
-      executedAt: entry.executedAt ?? null,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
+  const result = await sql.query<AuditLogRow>(
+    `
+      INSERT INTO audit_logs (user_id, action_type, service, risk_level, status, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+      RETURNING id, user_id, action_type, service, risk_level, status, metadata, timestamp
+    `,
+    [
+      entry.userId,
+      entry.action,
+      entry.service,
+      entry.riskLevel,
+      entry.status,
+      JSON.stringify(storedMetadata),
+    ]
+  );
 
-  try {
-    const result = await prisma.auditEntry.create({
-      data: {
-        userId: entry.userId,
-        action: entry.action,
-        service: entry.service,
-        riskLevel: entry.riskLevel,
-        status: entry.status,
-        details: entry.details,
-        metadata: entry.metadata,
-        approvedBy: entry.approvedBy,
-        approvedAt: entry.approvedAt,
-        executedAt: entry.executedAt,
-      },
-    });
-
-    return toAuditEntry(result);
-  } catch (error) {
-    console.warn('Audit logging failed; continuing without persistent audit storage.', error);
-    return toAuditEntry({
-      id: `ephemeral-${crypto.randomUUID()}`,
-      userId: entry.userId,
-      action: entry.action,
-      service: entry.service,
-      riskLevel: entry.riskLevel,
-      status: entry.status,
-      details: entry.details,
-      metadata: entry.metadata ?? null,
-      approvedBy: entry.approvedBy ?? null,
-      approvedAt: entry.approvedAt ?? null,
-      executedAt: entry.executedAt ?? null,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
+  return toAuditEntry(result.rows[0]);
 }
 
 export async function getAuditLogs(userId: string): Promise<AuditEntry[]> {
-  if (!isDatabaseConfigured()) {
-    return [];
-  }
+  const result = await sql.query<AuditLogRow>(
+    `
+      SELECT id, user_id, action_type, service, risk_level, status, metadata, timestamp
+      FROM audit_logs
+      WHERE user_id = $1
+      ORDER BY timestamp DESC
+      LIMIT 100
+    `,
+    [userId]
+  );
 
-  try {
-    const logs = await prisma.auditEntry.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
-
-    return logs.map((log) => toAuditEntry(log));
-  } catch (error) {
-    console.warn('Audit log retrieval failed; returning an empty list.', error);
-    return [];
-  }
+  return result.rows.map((row) => toAuditEntry(row));
 }

@@ -91,6 +91,7 @@ npm install
 ```
 
 2. Copy `.env.example` to `.env.local` and fill the values.
+   For local development, point the Postgres variables to a real database.
 
 3. Generate Prisma client:
 
@@ -103,6 +104,8 @@ npm run postinstall
 ```bash
 npm run dev
 ```
+
+5. Once the app is running and the database connection is valid, call `GET /api/migrate` one time to create the audit and approval tables.
 
 ## Required environment variables
 
@@ -150,13 +153,20 @@ npm run dev
 
 ### Database
 
+- `POSTGRES_URL`
 - `POSTGRES_PRISMA_URL`
 - `POSTGRES_URL_NON_POOLING`
+- `POSTGRES_USER`
+- `POSTGRES_HOST`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_DATABASE`
 
 Important:
 
 - `AUTH0_ISSUER_BASE_URL` must be the tenant root, for example `https://YOUR_TENANT.us.auth0.com`
 - Do not append `/api/v2`
+- When a Vercel Postgres database is linked to the project, Vercel injects these database variables automatically. Judges do not need to provision a database manually in Vercel.
+- After the database is linked for the first time, call `GET /api/migrate` once to create the required `audit_logs` and `approval_sessions` tables.
 
 ## Auth0 setup checklist
 

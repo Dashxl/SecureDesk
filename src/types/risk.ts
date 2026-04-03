@@ -2,7 +2,7 @@ export type RiskLevel = 'low' | 'high';
 
 export type ActionStatus = 'pending' | 'approved' | 'rejected' | 'executed' | 'failed';
 
-export type ServiceType = 'gmail' | 'slack' | 'jira';
+export type ServiceType = 'gmail' | 'slack';
 
 export interface RiskClassification {
   level: RiskLevel;

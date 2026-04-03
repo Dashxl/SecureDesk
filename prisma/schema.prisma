@@ -12,7 +12,7 @@ model AuditEntry {
   id          String   @id @default(cuid())
   userId      String
   action      String
-  service     String   // gmail | slack | jira
+  service     String   // gmail | slack
   riskLevel   String   // low | high
   status      String   // pending | approved | rejected | executed | failed
   details     String   @db.Text
@@ -32,7 +32,7 @@ model AuditEntry {
 model ConnectedService {
   id           String   @id @default(cuid())
   userId       String
-  service      String   // gmail | slack | jira
+  service      String   // gmail | slack
   connectionId String
   status       String   @default("connected") // connected | disconnected | error
   lastUsed     DateTime?

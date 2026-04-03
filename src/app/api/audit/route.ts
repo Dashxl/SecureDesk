@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getAuditLogs } from '@/lib/audit-logger';
 import { isAuth0Configured, safeGetSession } from '@/lib/auth-config';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   if (!isAuth0Configured()) {
     return NextResponse.json({ error: 'Auth0 is not configured.' }, { status: 503 });

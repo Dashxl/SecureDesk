@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   const userId = session.user.sub ?? session.user.email ?? 'unknown-user';
-  const { request: approvalRequest, error } = getApprovalRequestForUser(approvalId, userId);
+  const { request: approvalRequest, error } = await getApprovalRequestForUser(approvalId, userId);
 
   if (!approvalRequest || error) {
     return NextResponse.json({ error }, { status: 400 });
@@ -40,11 +40,11 @@ export async function GET(req: NextRequest) {
     const result = await pollCIBAToken(approvalRequest.authReqId);
 
     if (result.status === 'approved') {
-      updateApprovalRequestStatus(approvalId, 'approved');
+      await updateApprovalRequestStatus(approvalId, 'approved');
     }
 
     if (result.status === 'rejected') {
-      updateApprovalRequestStatus(approvalId, 'rejected');
+      await updateApprovalRequestStatus(approvalId, 'rejected');
     }
 
     return NextResponse.json(result);

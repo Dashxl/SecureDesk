@@ -1,7 +1,9 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
+import { sql } from '@/lib/db';
 import { RiskClassification } from '@/types/risk';
 
 export type ApprovalChannel = 'modal' | 'ciba';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'consumed' | 'expired';
 
 export type PendingApprovalRequest = {
   id: string;
@@ -14,75 +16,142 @@ export type PendingApprovalRequest = {
   dataAffected: string;
   mode: ApprovalChannel;
   authReqId?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: ApprovalStatus;
   verifiedAt?: number;
   createdAt: number;
   expiresAt: number;
 };
 
-const APPROVAL_TTL_MS = 10 * 60 * 1000;
-
-const globalForApprovals = globalThis as typeof globalThis & {
-  secureDeskApprovalStore?: Map<string, PendingApprovalRequest>;
+type ApprovalPayload = {
+  messageFingerprint: string;
+  description: string;
+  dataAffected: string;
+  mode: ApprovalChannel;
+  authReqId?: string | null;
+  verifiedAt?: number | null;
+  expiresAt: number;
 };
 
-function getApprovalStore() {
-  if (!globalForApprovals.secureDeskApprovalStore) {
-    globalForApprovals.secureDeskApprovalStore = new Map<string, PendingApprovalRequest>();
+type ApprovalSessionRow = {
+  id: string;
+  user_id: string;
+  action_type: string;
+  service: string;
+  risk_level: string;
+  status: ApprovalStatus;
+  payload: ApprovalPayload | string | null;
+  created_at: string | Date;
+  resolved_at: string | Date | null;
+};
+
+const APPROVAL_TTL_MS = 10 * 60 * 1000;
+
+function parseApprovalPayload(value: ApprovalSessionRow['payload']) {
+  if (!value) {
+    return null;
   }
 
-  const now = Date.now();
-  for (const [id, request] of globalForApprovals.secureDeskApprovalStore.entries()) {
-    if (request.expiresAt <= now) {
-      globalForApprovals.secureDeskApprovalStore.delete(id);
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as ApprovalPayload;
+    } catch {
+      return null;
     }
   }
 
-  return globalForApprovals.secureDeskApprovalStore;
+  return value;
+}
+
+function mapApprovalRow(row: ApprovalSessionRow): PendingApprovalRequest {
+  const payload = parseApprovalPayload(row.payload);
+
+  if (!payload) {
+    throw new Error('Approval session payload is missing.');
+  }
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    messageFingerprint: payload.messageFingerprint,
+    action: row.action_type,
+    service: row.service as RiskClassification['service'],
+    riskLevel: row.risk_level as RiskClassification['level'],
+    description: payload.description,
+    dataAffected: payload.dataAffected,
+    mode: payload.mode,
+    authReqId: payload.authReqId ?? undefined,
+    status: row.status,
+    verifiedAt: payload.verifiedAt ?? undefined,
+    createdAt: new Date(row.created_at).getTime(),
+    expiresAt: payload.expiresAt,
+  };
+}
+
+async function getApprovalSessionRow(id: string) {
+  const result = await sql.query<ApprovalSessionRow>(
+    `
+      SELECT id, user_id, action_type, service, risk_level, status, payload, created_at, resolved_at
+      FROM approval_sessions
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [id]
+  );
+
+  return result.rows[0] ?? null;
 }
 
 export function fingerprintApprovalMessage(message: string) {
   return createHash('sha256').update(message.trim()).digest('hex');
 }
 
-export function createApprovalRequest(args: {
+export async function createApprovalRequest(args: {
   userId: string;
   message: string;
   classification: RiskClassification;
   mode: ApprovalChannel;
   authReqId?: string;
 }) {
-  const now = Date.now();
-  const request: PendingApprovalRequest = {
-    id: randomUUID(),
-    userId: args.userId,
+  const payload: ApprovalPayload = {
     messageFingerprint: fingerprintApprovalMessage(args.message),
-    action: args.classification.action,
-    service: args.classification.service,
-    riskLevel: args.classification.level,
     description: args.classification.description,
     dataAffected: args.classification.dataAffected,
     mode: args.mode,
-    authReqId: args.authReqId,
-    status: 'pending',
-    createdAt: now,
-    expiresAt: now + APPROVAL_TTL_MS,
+    authReqId: args.authReqId ?? null,
+    verifiedAt: null,
+    expiresAt: Date.now() + APPROVAL_TTL_MS,
   };
 
-  getApprovalStore().set(request.id, request);
-  return request;
+  const result = await sql.query<ApprovalSessionRow>(
+    `
+      INSERT INTO approval_sessions (user_id, action_type, service, risk_level, status, payload)
+      VALUES ($1, $2, $3, $4, 'pending', $5::jsonb)
+      RETURNING id, user_id, action_type, service, risk_level, status, payload, created_at, resolved_at
+    `,
+    [
+      args.userId,
+      args.classification.action,
+      args.classification.service,
+      args.classification.level,
+      JSON.stringify(payload),
+    ]
+  );
+
+  return mapApprovalRow(result.rows[0]);
 }
 
-export function getApprovalRequestForUser(id: string, userId: string) {
-  const request = getApprovalStore().get(id);
+export async function getApprovalRequestForUser(id: string, userId: string) {
+  const row = await getApprovalSessionRow(id);
 
-  if (!request) {
+  if (!row) {
     return {
       request: null,
       error:
         'This approval session is no longer active. Please review the action again before SecureDesk proceeds.',
     };
   }
+
+  const request = mapApprovalRow(row);
 
   if (request.userId !== userId) {
     return {
@@ -91,8 +160,16 @@ export function getApprovalRequestForUser(id: string, userId: string) {
     };
   }
 
-  if (request.expiresAt <= Date.now()) {
-    getApprovalStore().delete(id);
+  if (request.status === 'consumed') {
+    return {
+      request: null,
+      error:
+        'This approval session is no longer active. Please review the action again before SecureDesk proceeds.',
+    };
+  }
+
+  if (request.status === 'expired' || request.expiresAt <= Date.now()) {
+    await updateApprovalRequestStatus(id, 'expired');
     return {
       request: null,
       error:
@@ -116,27 +193,41 @@ export function approvalMatchesAction(
   );
 }
 
-export function consumeApprovalRequest(id: string) {
-  getApprovalStore().delete(id);
+export async function consumeApprovalRequest(id: string) {
+  await updateApprovalRequestStatus(id, 'consumed');
 }
 
-export function updateApprovalRequestStatus(
-  id: string,
-  status: PendingApprovalRequest['status']
-) {
-  const store = getApprovalStore();
-  const request = store.get(id);
+export async function updateApprovalRequestStatus(id: string, status: ApprovalStatus) {
+  const row = await getApprovalSessionRow(id);
 
-  if (!request) {
+  const payload = row ? parseApprovalPayload(row.payload) : null;
+
+  if (!row || !payload) {
     return null;
   }
 
-  const nextRequest: PendingApprovalRequest = {
-    ...request,
-    status,
-    verifiedAt: Date.now(),
+  const nextPayload: ApprovalPayload = {
+    ...payload,
+    verifiedAt:
+      status === 'approved' || status === 'rejected' || status === 'consumed' || status === 'expired'
+        ? Date.now()
+        : payload.verifiedAt ?? null,
   };
 
-  store.set(id, nextRequest);
-  return nextRequest;
+  const result = await sql.query<ApprovalSessionRow>(
+    `
+      UPDATE approval_sessions
+      SET status = $2,
+          payload = $3::jsonb,
+          resolved_at = CASE
+            WHEN $2 IN ('approved', 'rejected', 'consumed', 'expired') THEN NOW()
+            ELSE resolved_at
+          END
+      WHERE id = $1
+      RETURNING id, user_id, action_type, service, risk_level, status, payload, created_at, resolved_at
+    `,
+    [id, status, JSON.stringify(nextPayload)]
+  );
+
+  return result.rows[0] ? mapApprovalRow(result.rows[0]) : null;
 }

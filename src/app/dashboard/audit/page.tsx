@@ -10,7 +10,7 @@ export default function AuditPage() {
     logs,
     isLoading,
     error,
-    upsertLogs,
+    setLogs,
     setLoading,
     setError,
     filterRiskType,
@@ -22,24 +22,43 @@ export default function AuditPage() {
   } = useAuditStore();
 
   useEffect(() => {
-    async function fetchLogs() {
-      setLoading(true);
+    let isCancelled = false;
+
+    async function fetchLogs(showLoader: boolean) {
+      if (showLoader) {
+        setLoading(true);
+      }
+
       try {
-        const res = await fetch('/api/audit');
+        const res = await fetch('/api/audit', { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to load logs');
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          upsertLogs(data);
+
+        if (!isCancelled) {
+          setLogs(Array.isArray(data) ? data : []);
+          setError(null);
         }
       } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load logs');
+        if (!isCancelled) {
+          setError(fetchError instanceof Error ? fetchError.message : 'Failed to load logs');
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled && showLoader) {
+          setLoading(false);
+        }
       }
     }
 
-    void fetchLogs();
-  }, [setError, setLoading, upsertLogs]);
+    void fetchLogs(true);
+    const interval = window.setInterval(() => {
+      void fetchLogs(false);
+    }, 5000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [setError, setLoading, setLogs]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
@@ -165,7 +184,6 @@ export default function AuditPage() {
           <option value="">All services</option>
           <option value="slack">Slack</option>
           <option value="gmail">Gmail</option>
-          <option value="jira">Jira</option>
         </select>
         <select
           value={filterRiskType ?? ''}
@@ -210,10 +228,6 @@ export default function AuditPage() {
             </div>
           ) : (
           <div className="space-y-3">
-            <div className="rounded-xl border border-surface-300 bg-surface-100 px-4 py-3 text-xs text-surface-600">
-              This view also preserves the current session feed when persistence is temporarily
-              unavailable. Export the CSV if you want a portable copy of the visible history.
-            </div>
             {filteredLogs.map((log) => (
               <AuditEntry key={log.id} entry={log} />
             ))}

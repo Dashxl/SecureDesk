@@ -40,7 +40,6 @@ type ChatPayload = {
 type ResolvedAction =
   | { kind: 'help' }
   | { kind: 'unknown'; reason?: string }
-  | { kind: 'jira' }
   | { kind: 'slack_list' }
   | { kind: 'slack_post'; channel: string; text: string }
   | { kind: 'gmail_unread' }
@@ -385,11 +384,6 @@ async function resolveActionRequest(message: string): Promise<ResolvedAction> {
     }
   }
 
-  const rawClassification = classifyAction(normalized);
-  if (rawClassification?.service === 'jira') {
-    return { kind: 'jira' };
-  }
-
   return { kind: 'unknown' };
 }
 
@@ -431,8 +425,6 @@ function getClassificationForResolvedAction(
         description: 'Send or compose an email',
         dataAffected: `Email to ${resolvedAction.to}`,
       };
-    case 'jira':
-      return classifyAction(rawMessage);
     default:
       return null;
   }
@@ -546,14 +538,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const { request: pendingApproval, error } = getApprovalRequestForUser(approvalRequestId, userId);
+    const { request: pendingApproval, error } = await getApprovalRequestForUser(
+      approvalRequestId,
+      userId
+    );
 
     if (!pendingApproval || error) {
       return NextResponse.json({ reply: error }, { status: 400 });
     }
 
     if (!approvalMatchesAction(pendingApproval, classification, latestMessageText)) {
-      consumeApprovalRequest(approvalRequestId);
+      await consumeApprovalRequest(approvalRequestId);
       return NextResponse.json(
         {
           reply:
@@ -563,7 +558,7 @@ export async function POST(req: Request) {
       );
     }
 
-    consumeApprovalRequest(approvalRequestId);
+    await consumeApprovalRequest(approvalRequestId);
     const rejectedLog = await logAction({
       userId,
       action: classification.action,
@@ -604,14 +599,17 @@ export async function POST(req: Request) {
         );
       }
 
-      const { request: pendingApproval, error } = getApprovalRequestForUser(approvalRequestId, userId);
+      const { request: pendingApproval, error } = await getApprovalRequestForUser(
+        approvalRequestId,
+        userId
+      );
 
       if (!pendingApproval || error) {
         return NextResponse.json({ reply: error }, { status: 400 });
       }
 
       if (!approvalMatchesAction(pendingApproval, classification, latestMessageText)) {
-        consumeApprovalRequest(approvalRequestId);
+        await consumeApprovalRequest(approvalRequestId);
         return NextResponse.json(
           {
             reply:
@@ -635,7 +633,7 @@ export async function POST(req: Request) {
         }
 
         if (pendingApproval.status === 'rejected') {
-          consumeApprovalRequest(approvalRequestId);
+          await consumeApprovalRequest(approvalRequestId);
 
           const rejectedLog = await logAction({
             userId,
@@ -671,7 +669,7 @@ export async function POST(req: Request) {
         }
       }
 
-      consumeApprovalRequest(approvalRequestId);
+      await consumeApprovalRequest(approvalRequestId);
       consumedApprovalMode = pendingApproval.mode;
     } else {
       const pendingLog = await logAction({
@@ -693,7 +691,7 @@ export async function POST(req: Request) {
             bindingMessage: getCibaBindingMessage(classification),
             scope: 'openid',
           });
-          const approvalRequest = createApprovalRequest({
+          const approvalRequest = await createApprovalRequest({
             userId,
             message: latestMessageText,
             classification,
@@ -719,7 +717,7 @@ export async function POST(req: Request) {
             auditEntries: [pendingLog],
           });
         } catch (error) {
-          const approvalRequest = createApprovalRequest({
+          const approvalRequest = await createApprovalRequest({
             userId,
             message: latestMessageText,
             classification,
@@ -747,7 +745,7 @@ export async function POST(req: Request) {
         }
       }
 
-      const approvalRequest = createApprovalRequest({
+      const approvalRequest = await createApprovalRequest({
         userId,
         message: latestMessageText,
         classification,
@@ -965,17 +963,6 @@ export async function POST(req: Request) {
           auditEntries,
         });
       }
-
-      case 'jira':
-        return NextResponse.json({
-          reply: await presentReply({
-            userMessage: latestMessageText,
-            rawReply:
-              'SecureDesk currently runs live Slack and Gmail paths through Auth0 Token Vault. Jira remains scaffolded in the repository but is not active in this tenant yet.',
-            mode: 'info',
-            recentMessages: recentConversation,
-          }),
-        });
 
       case 'unknown':
         return NextResponse.json({

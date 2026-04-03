@@ -9,13 +9,10 @@ import { ApprovalModal } from '@/components/risk/ApprovalModal';
 import { useChatStore } from '@/store/chat-store';
 import { useApprovalStore } from '@/store/approval-store';
 import { RiskClassification } from '@/types/risk';
-import { AuditEntry } from '@/types/audit';
-import { useAuditStore } from '@/store/audit-store';
 import LogoMark from '@/app/img/Logo.jpg';
 
 type ChatResponse = {
   reply?: string;
-  auditEntries?: AuditEntry[];
   approvalRequired?: {
     classification: RiskClassification;
     approvalId: string;
@@ -29,7 +26,6 @@ export default function DashboardPage() {
   const { user } = useUser();
   const { messages: storeMessages, addMessage, updateMessage, setStreaming } = useChatStore();
   const { activeApprovalId, setActiveApproval, isApproving, setIsApproving } = useApprovalStore();
-  const { upsertLogs } = useAuditStore();
 
   const activeApprovalMessage = storeMessages.find(
     (message) => message.approvalId === activeApprovalId
@@ -148,10 +144,6 @@ export default function DashboardPage() {
 
     if (!response.ok) {
       throw new Error(data?.reply || `SecureDesk request failed with status ${response.status}.`);
-    }
-
-    if (data?.auditEntries?.length) {
-      upsertLogs(data.auditEntries);
     }
 
     if (data?.approvalRequired) {

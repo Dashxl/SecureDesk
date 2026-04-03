@@ -8,26 +8,46 @@ import Image from 'next/image';
 import LogoMark from '@/app/img/Logo.jpg';
 
 export function AuditPanel() {
-  const { logs, isLoading, upsertLogs, setLoading, setError, filterRiskType, filterService } = useAuditStore();
+  const { logs, isLoading, setLogs, setLoading, setError, filterRiskType, filterService } = useAuditStore();
 
   useEffect(() => {
-    async function fetchLogs() {
-      setLoading(true);
+    let isCancelled = false;
+
+    async function fetchLogs(showLoader: boolean) {
+      if (showLoader) {
+        setLoading(true);
+      }
+
       try {
-        const res = await fetch('/api/audit');
+        const res = await fetch('/api/audit', { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to load logs');
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          upsertLogs(data);
+
+        if (!isCancelled) {
+          setLogs(Array.isArray(data) ? data : []);
+          setError(null);
         }
       } catch (e: any) {
-        setError(e.message);
+        if (!isCancelled) {
+          setError(e.message);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled && showLoader) {
+          setLoading(false);
+        }
       }
     }
-    fetchLogs();
-  }, [setLoading, upsertLogs, setError]);
+
+    void fetchLogs(true);
+    const interval = window.setInterval(() => {
+      void fetchLogs(false);
+    }, 5000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [setError, setLoading, setLogs]);
 
   const filteredLogs = logs.filter(log => {
     if (filterRiskType && log.riskLevel !== filterRiskType) return false;
