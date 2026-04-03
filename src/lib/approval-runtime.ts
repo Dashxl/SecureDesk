@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
-import { sql } from '@/lib/db';
+import { queryDb } from '@/lib/db';
 import { RiskClassification } from '@/types/risk';
+import { v4 as uuidv4 } from 'uuid';
 
 export type ApprovalChannel = 'modal' | 'ciba';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'consumed' | 'expired';
@@ -88,7 +89,7 @@ function mapApprovalRow(row: ApprovalSessionRow): PendingApprovalRequest {
 }
 
 async function getApprovalSessionRow(id: string) {
-  const result = await sql.query<ApprovalSessionRow>(
+  const result = await queryDb<ApprovalSessionRow>(
     `
       SELECT id, user_id, action_type, service, risk_level, status, payload, created_at, resolved_at
       FROM approval_sessions
@@ -122,13 +123,14 @@ export async function createApprovalRequest(args: {
     expiresAt: Date.now() + APPROVAL_TTL_MS,
   };
 
-  const result = await sql.query<ApprovalSessionRow>(
+  const result = await queryDb<ApprovalSessionRow>(
     `
-      INSERT INTO approval_sessions (user_id, action_type, service, risk_level, status, payload)
-      VALUES ($1, $2, $3, $4, 'pending', $5::jsonb)
+      INSERT INTO approval_sessions (id, user_id, action_type, service, risk_level, status, payload)
+      VALUES ($1, $2, $3, $4, $5, 'pending', $6::jsonb)
       RETURNING id, user_id, action_type, service, risk_level, status, payload, created_at, resolved_at
     `,
     [
+      uuidv4(),
       args.userId,
       args.classification.action,
       args.classification.service,
@@ -214,7 +216,7 @@ export async function updateApprovalRequestStatus(id: string, status: ApprovalSt
         : payload.verifiedAt ?? null,
   };
 
-  const result = await sql.query<ApprovalSessionRow>(
+  const result = await queryDb<ApprovalSessionRow>(
     `
       UPDATE approval_sessions
       SET status = $2,

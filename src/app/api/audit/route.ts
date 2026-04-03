@@ -17,7 +17,16 @@ export async function GET() {
   try {
     const logs = await getAuditLogs(session.user.sub);
     return NextResponse.json(logs);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : JSON.stringify(error, Object.getOwnPropertyNames(error ?? {}));
+
+    console.error('Audit log fetch failed:', error);
+
+    return NextResponse.json({ error: message || 'Unable to load audit logs.' }, { status: 500 });
   }
 }

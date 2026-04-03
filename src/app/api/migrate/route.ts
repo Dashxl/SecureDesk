@@ -6,11 +6,19 @@ export async function GET() {
     await runCoreMigrations();
     return NextResponse.json({ ok: true, message: 'Core database tables are ready.' });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : JSON.stringify(error, Object.getOwnPropertyNames(error ?? {}));
+
+    console.error('Database migration failed:', error);
+
     return NextResponse.json(
       {
         ok: false,
-        error:
-          error instanceof Error ? error.message : 'Unable to run the database migration route.',
+        error: message || 'Unable to run the database migration route.',
       },
       { status: 500 }
     );

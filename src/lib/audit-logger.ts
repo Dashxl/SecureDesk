@@ -1,5 +1,6 @@
-import { sql } from '@/lib/db';
+import { queryDb } from '@/lib/db';
 import { RiskLevel, ActionStatus, ServiceType, AuditEntry } from '@/types/audit';
+import { v4 as uuidv4 } from 'uuid';
 
 type StoredAuditMetadata = {
   details: string;
@@ -77,13 +78,14 @@ export async function logAction(entry: {
     executedAt: entry.executedAt?.toISOString() ?? null,
   };
 
-  const result = await sql.query<AuditLogRow>(
+  const result = await queryDb<AuditLogRow>(
     `
-      INSERT INTO audit_logs (user_id, action_type, service, risk_level, status, metadata)
-      VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+      INSERT INTO audit_logs (id, user_id, action_type, service, risk_level, status, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
       RETURNING id, user_id, action_type, service, risk_level, status, metadata, timestamp
     `,
     [
+      uuidv4(),
       entry.userId,
       entry.action,
       entry.service,
@@ -97,7 +99,7 @@ export async function logAction(entry: {
 }
 
 export async function getAuditLogs(userId: string): Promise<AuditEntry[]> {
-  const result = await sql.query<AuditLogRow>(
+  const result = await queryDb<AuditLogRow>(
     `
       SELECT id, user_id, action_type, service, risk_level, status, metadata, timestamp
       FROM audit_logs
