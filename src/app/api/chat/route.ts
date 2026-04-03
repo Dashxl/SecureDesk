@@ -16,15 +16,25 @@ import { AuditEntry } from '@/types/audit';
 import { RiskClassification } from '@/types/risk';
 import { markServiceTokenObserved } from '@/lib/connected-service-store';
 import { initiateCIBARequest } from '@/lib/ciba';
-import { isGeminiConfigured, parseIntentWithGemini } from '@/lib/gemini';
+import {
+  generateConversationalReply,
+  isGeminiConfigured,
+  parseIntentWithGemini,
+} from '@/lib/gemini';
+import {
+  approvalMatchesAction,
+  consumeApprovalRequest,
+  createApprovalRequest,
+  getApprovalRequestForUser,
+} from '@/lib/approval-runtime';
 
 export const maxDuration = 30;
 
 type ChatPayload = {
   message?: string;
   messages?: Array<{ content?: string; parts?: Array<{ type?: string; text?: string }> }>;
-  approvalStatus?: 'approved' | 'rejected';
-  approvalMode?: 'modal' | 'ciba';
+  approvalDecision?: 'approved' | 'rejected';
+  approvalRequestId?: string;
 };
 
 type ResolvedAction =
@@ -85,22 +95,22 @@ function formatChannelsResponse(
 
 function formatHelpResponse() {
   return [
-    'SecureDesk routes supported actions through Gemini Flash intent parsing and a deterministic security runtime.',
+    'SecureDesk translates natural language into a tightly scoped action plan, then executes only inside its policy boundary.',
     'You can ask naturally or use direct commands like:',
     '- `List my Slack channels`',
     '- `Post a message to #general-securedesk saying: Hello from SecureDesk`',
     '- `List my unread emails`',
     '- `Summarize my emails from today`',
     '- `Send an email to teammate@example.com saying: Hello from SecureDesk`',
-    'Slack and Gmail run through Auth0 Token Vault. FGA gates tool access. High-risk actions use CIBA when configured and fall back to the in-app approval modal otherwise.',
+    'Slack and Gmail run through Auth0 Token Vault. Auth0 FGA governs tool access. High-impact actions pause for explicit approval before SecureDesk proceeds.',
   ].join('\n\n');
 }
 
 function formatUnknownActionResponse(reason?: string) {
   return [
-    "SecureDesk couldn't map that request to a supported action yet.",
+    "SecureDesk couldn't route that request to a supported action yet.",
     reason,
-    'Current actions SecureDesk can perform:',
+    'Current actions available in this workspace:',
     '- list Slack channels',
     '- post a Slack message',
     '- list unread Gmail messages',
@@ -231,8 +241,9 @@ function getCibaBindingMessage(classification: NonNullable<RiskClassification>) 
 async function evaluateToolPermission(userId: string, action: string) {
   if (!isFGAConfigured()) {
     return {
-      allowed: true,
-      note: 'Auth0 FGA is not configured yet, so SecureDesk allowed this action in demo mode. Configure FGA before judging.',
+      allowed: false,
+      note:
+        'SecureDesk policy enforcement is offline. Configure Auth0 FGA before running connected Slack or Gmail actions.',
     };
   }
 
@@ -256,11 +267,11 @@ function getApprovalDetails(
   const source =
     approvalMode === 'ciba'
       ? 'through Auth0 CIBA / Guardian'
-      : 'through the SecureDesk in-app approval modal';
+      : 'through the SecureDesk approval console';
 
   return approvalStatus === 'approved'
-    ? `User approved ${action} ${source}. SecureDesk is executing the request.`
-    : `User rejected ${action} ${source}. No external action was executed.`;
+    ? `User approved ${action} ${source}. SecureDesk released the action for execution.`
+    : `User rejected ${action} ${source}. SecureDesk kept the action blocked.`;
 }
 
 async function getSlackProviderTokenForCurrentUser() {
@@ -427,6 +438,41 @@ function getClassificationForResolvedAction(
   }
 }
 
+function getHighRiskAuditMetadata(resolvedAction: ResolvedAction) {
+  switch (resolvedAction.kind) {
+    case 'slack_post':
+      return `Target ${resolvedAction.channel}; message length ${resolvedAction.text.trim().length} characters.`;
+    case 'gmail_send':
+      return `Recipient ${resolvedAction.to}; body length ${resolvedAction.body.trim().length} characters.`;
+    default:
+      return null;
+  }
+}
+
+function getRecentConversation(messages: ChatPayload['messages']) {
+  return (messages ?? [])
+    .map((item) => getLatestMessageText(item))
+    .filter(Boolean)
+    .slice(-6);
+}
+
+async function presentReply(args: {
+  userMessage: string;
+  rawReply: string;
+  mode: 'help' | 'unsupported' | 'approval' | 'success' | 'error' | 'info';
+  recentMessages?: string[];
+}) {
+  if (!isGeminiConfigured()) {
+    return args.rawReply;
+  }
+
+  try {
+    return await generateConversationalReply(args);
+  } catch {
+    return args.rawReply;
+  }
+}
+
 export async function POST(req: Request) {
   if (!isAuth0Configured()) {
     return new Response('Auth0 is not configured.', { status: 503 });
@@ -440,13 +486,14 @@ export async function POST(req: Request) {
   const {
     message,
     messages = [],
-    approvalStatus,
-    approvalMode,
+    approvalDecision,
+    approvalRequestId,
   } = (await req.json()) as ChatPayload;
 
   const latestMessage = messages[messages.length - 1];
   const latestMessageText =
     (typeof message === 'string' && message.trim()) || getLatestMessageText(latestMessage);
+  const recentConversation = getRecentConversation(messages);
   const resolvedAction = await resolveActionRequest(latestMessageText);
   const classification = getClassificationForResolvedAction(resolvedAction, latestMessageText);
   const highRisk = isHighRisk(classification);
@@ -456,92 +503,277 @@ export async function POST(req: Request) {
     process.env.SLACK_CONNECTION_NAME || process.env.SLACK_CONNECTION_ID || 'slack';
   const gmailConnectionId =
     process.env.GMAIL_CONNECTION_NAME || process.env.GMAIL_CONNECTION_ID || 'google-oauth2';
+  let permissionNote: string | undefined;
 
-  if (highRisk && approvalStatus === 'rejected' && classification) {
+  if (
+    classification &&
+    (classification.service === 'slack' || classification.service === 'gmail')
+  ) {
+    const permission = await evaluateToolPermission(userId, classification.action);
+
+    if (!permission.allowed) {
+      return NextResponse.json(
+        {
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: permission.note!,
+            mode: 'error',
+            recentMessages: recentConversation,
+          }),
+        },
+        { status: 403 }
+      );
+    }
+
+    permissionNote = permission.note ?? undefined;
+  }
+
+  let consumedApprovalMode: 'modal' | 'ciba' | undefined;
+
+  if (highRisk && approvalDecision === 'rejected' && classification) {
+    if (!approvalRequestId) {
+      return NextResponse.json(
+        {
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply:
+              'SecureDesk could not record that rejection because the approval session id was missing.',
+            mode: 'error',
+            recentMessages: recentConversation,
+          }),
+        },
+        { status: 400 }
+      );
+    }
+
+    const { request: pendingApproval, error } = getApprovalRequestForUser(approvalRequestId, userId);
+
+    if (!pendingApproval || error) {
+      return NextResponse.json({ reply: error }, { status: 400 });
+    }
+
+    if (!approvalMatchesAction(pendingApproval, classification, latestMessageText)) {
+      consumeApprovalRequest(approvalRequestId);
+      return NextResponse.json(
+        {
+          reply:
+            'That approval session no longer matches the action waiting to run. Please submit the request again.',
+        },
+        { status: 409 }
+      );
+    }
+
+    consumeApprovalRequest(approvalRequestId);
     const rejectedLog = await logAction({
       userId,
       action: classification.action,
       service: classification.service,
       riskLevel: classification.level,
       status: 'rejected',
-      details: getApprovalDetails(classification.action, 'rejected', approvalMode),
+      details: getApprovalDetails(classification.action, 'rejected', pendingApproval.mode),
       metadata: classification.dataAffected,
       approvedBy: approverId,
       approvedAt: new Date(),
     });
 
     return NextResponse.json({
-      reply: 'Action rejected. No external action was executed.',
+      reply: await presentReply({
+        userMessage: latestMessageText,
+        rawReply: 'Approval declined. SecureDesk kept the external action blocked.',
+        mode: 'info',
+        recentMessages: recentConversation,
+      }),
       auditEntries: [rejectedLog],
     });
   }
 
-  if (highRisk && approvalStatus !== 'approved' && classification) {
-    const pendingLog = await logAction({
-      userId,
-      action: classification.action,
-      service: classification.service,
-      riskLevel: classification.level,
-      status: 'pending',
-      details: isCibaConfigured()
-        ? `Awaiting Auth0 CIBA / Guardian approval for ${classification.action}.`
-        : `Awaiting explicit in-app approval for ${classification.action}.`,
-      metadata: classification.dataAffected,
-    });
+  if (highRisk && classification) {
+    if (approvalDecision === 'approved') {
+      if (!approvalRequestId) {
+        return NextResponse.json(
+          {
+            reply: await presentReply({
+              userMessage: latestMessageText,
+              rawReply:
+                'SecureDesk could not release that action because the approval session id was missing.',
+              mode: 'error',
+              recentMessages: recentConversation,
+            }),
+          },
+          { status: 400 }
+        );
+      }
 
-    if (isCibaConfigured()) {
-      try {
-        const ciba = await initiateCIBARequest({
-          userId,
-          bindingMessage: getCibaBindingMessage(classification),
-          scope: 'openid',
-        });
+      const { request: pendingApproval, error } = getApprovalRequestForUser(approvalRequestId, userId);
 
-        return NextResponse.json({
-          reply: 'Waiting for your approval - check your Auth0 Guardian notification.',
-          approvalRequired: {
+      if (!pendingApproval || error) {
+        return NextResponse.json({ reply: error }, { status: 400 });
+      }
+
+      if (!approvalMatchesAction(pendingApproval, classification, latestMessageText)) {
+        consumeApprovalRequest(approvalRequestId);
+        return NextResponse.json(
+          {
+            reply:
+              'That approval session no longer matches the action waiting to run. Please review the action again.',
+          },
+          { status: 409 }
+        );
+      }
+
+      if (pendingApproval.mode === 'ciba') {
+        if (pendingApproval.status === 'pending') {
+          return NextResponse.json({
+            reply: await presentReply({
+              userMessage: latestMessageText,
+              rawReply:
+                'SecureDesk is still waiting for confirmation from Auth0 Guardian before it can proceed.',
+              mode: 'info',
+              recentMessages: recentConversation,
+            }),
+          });
+        }
+
+        if (pendingApproval.status === 'rejected') {
+          consumeApprovalRequest(approvalRequestId);
+
+          const rejectedLog = await logAction({
+            userId,
+            action: classification.action,
+            service: classification.service,
+            riskLevel: classification.level,
+            status: 'rejected',
+            details: getApprovalDetails(classification.action, 'rejected', 'ciba'),
+            metadata: classification.dataAffected,
+            approvedBy: approverId,
+            approvedAt: new Date(),
+          });
+
+          return NextResponse.json({
+            reply: await presentReply({
+              userMessage: latestMessageText,
+              rawReply: 'Auth0 Guardian declined the request. SecureDesk kept the action blocked.',
+              mode: 'info',
+              recentMessages: recentConversation,
+            }),
+            auditEntries: [rejectedLog],
+          });
+        }
+
+        if (pendingApproval.status !== 'approved') {
+          return NextResponse.json(
+            {
+              reply:
+                'SecureDesk could not confirm the external approval state. Please submit the action again.',
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      consumeApprovalRequest(approvalRequestId);
+      consumedApprovalMode = pendingApproval.mode;
+    } else {
+      const pendingLog = await logAction({
+        userId,
+        action: classification.action,
+        service: classification.service,
+        riskLevel: classification.level,
+        status: 'pending',
+        details: isCibaConfigured()
+          ? `Awaiting external approval through Auth0 CIBA / Guardian for ${classification.action}.`
+          : `Awaiting in-product approval for ${classification.action}.`,
+        metadata: classification.dataAffected,
+      });
+
+      if (isCibaConfigured()) {
+        try {
+          const ciba = await initiateCIBARequest({
+            userId,
+            bindingMessage: getCibaBindingMessage(classification),
+            scope: 'openid',
+          });
+          const approvalRequest = createApprovalRequest({
+            userId,
+            message: latestMessageText,
             classification,
             mode: 'ciba',
             authReqId: ciba.auth_req_id,
-            interval: ciba.interval,
-          },
-          auditEntries: [pendingLog],
-        });
-      } catch (error) {
-        const fallbackNote =
-          error instanceof Error
-            ? `CIBA could not be started, so SecureDesk fell back to the in-app approval modal. ${error.message}`
-            : 'CIBA could not be started, so SecureDesk fell back to the in-app approval modal.';
+          });
 
-        return NextResponse.json({
-          reply: fallbackNote,
-          approvalRequired: {
+          return NextResponse.json({
+            reply: await presentReply({
+              userMessage: latestMessageText,
+              rawReply:
+                'Approval requested in Auth0 Guardian. SecureDesk will continue automatically once you confirm it.',
+              mode: 'approval',
+              recentMessages: recentConversation,
+            }),
+            approvalRequired: {
+              classification,
+              mode: 'ciba',
+              approvalId: approvalRequest.id,
+              authReqId: ciba.auth_req_id,
+              interval: ciba.interval,
+            },
+            auditEntries: [pendingLog],
+          });
+        } catch (error) {
+          const approvalRequest = createApprovalRequest({
+            userId,
+            message: latestMessageText,
             classification,
             mode: 'modal',
-          },
-          auditEntries: [pendingLog],
-        });
-      }
-    }
+          });
+          const fallbackNote =
+            error instanceof Error
+              ? `SecureDesk could not reach the external approval channel, so the request moved into the in-product review step. ${error.message}`
+              : 'SecureDesk could not reach the external approval channel, so the request moved into the in-product review step.';
 
-    return NextResponse.json({
-      reply: 'Action requires approval before SecureDesk can execute it.',
-      approvalRequired: {
+          return NextResponse.json({
+            reply: await presentReply({
+              userMessage: latestMessageText,
+              rawReply: fallbackNote,
+              mode: 'approval',
+              recentMessages: recentConversation,
+            }),
+            approvalRequired: {
+              classification,
+              mode: 'modal',
+              approvalId: approvalRequest.id,
+            },
+            auditEntries: [pendingLog],
+          });
+        }
+      }
+
+      const approvalRequest = createApprovalRequest({
+        userId,
+        message: latestMessageText,
         classification,
         mode: 'modal',
-      },
-      auditEntries: [pendingLog],
-    });
+      });
+
+      return NextResponse.json({
+        reply: await presentReply({
+          userMessage: latestMessageText,
+          rawReply: 'This action is ready for review. Approve it to let SecureDesk continue.',
+          mode: 'approval',
+          recentMessages: recentConversation,
+        }),
+        approvalRequired: {
+          classification,
+          mode: 'modal',
+          approvalId: approvalRequest.id,
+        },
+        auditEntries: [pendingLog],
+      });
+    }
   }
 
   try {
     switch (resolvedAction.kind) {
       case 'slack_list': {
-        const permission = await evaluateToolPermission(userId, 'read_slack');
-        if (!permission.allowed) {
-          return NextResponse.json({ reply: permission.note! });
-        }
-
         const slackToken = await getSlackProviderTokenForCurrentUser();
         await markServiceTokenObserved(userId, 'slack', slackConnectionId);
         const channels = await readSlackChannels(slackToken);
@@ -557,27 +789,27 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({
-          reply: formatChannelsResponse(channels, permission.note ?? undefined),
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: formatChannelsResponse(channels, permissionNote),
+            mode: 'success',
+            recentMessages: recentConversation,
+          }),
           auditEntries: [executedLog],
         });
       }
 
       case 'slack_post': {
-        const permission = await evaluateToolPermission(userId, 'post_slack_message');
-        if (!permission.allowed) {
-          return NextResponse.json({ reply: permission.note! });
-        }
-
         const auditEntries: AuditEntry[] = [];
 
-        if (approvalStatus === 'approved' && classification) {
+        if (consumedApprovalMode && classification) {
           const approvedLog = await logAction({
             userId,
             action: classification.action,
             service: classification.service,
             riskLevel: classification.level,
             status: 'approved',
-            details: getApprovalDetails(classification.action, 'approved', approvalMode),
+            details: getApprovalDetails(classification.action, 'approved', consumedApprovalMode),
             metadata: classification.dataAffected,
             approvedBy: approverId,
             approvedAt: new Date(),
@@ -601,32 +833,32 @@ export async function POST(req: Request) {
           riskLevel: 'high',
           status: 'executed',
           details: `Posted a Slack message to ${resolvedAction.channel}.`,
-          metadata: resolvedAction.text,
-          approvedBy: approvalStatus === 'approved' ? approverId : null,
-          approvedAt: approvalStatus === 'approved' ? new Date() : null,
+          metadata: getHighRiskAuditMetadata(resolvedAction) ?? undefined,
+          approvedBy: consumedApprovalMode ? approverId : null,
+          approvedAt: consumedApprovalMode ? new Date() : null,
           executedAt: new Date(),
         });
         auditEntries.push(executedLog);
 
         return NextResponse.json({
-          reply: [
-            `Slack message posted successfully to ${resolvedAction.channel}.`,
-            `Slack channel id: ${result.channel}`,
-            `Slack timestamp: ${result.ts}`,
-            permission.note,
-          ]
-            .filter(Boolean)
-            .join('\n\n'),
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: [
+              `Slack message posted successfully to ${resolvedAction.channel}.`,
+              `Slack channel id: ${result.channel}`,
+              `Slack timestamp: ${result.ts}`,
+              permissionNote,
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
+            mode: 'success',
+            recentMessages: recentConversation,
+          }),
           auditEntries,
         });
       }
 
       case 'gmail_unread': {
-        const permission = await evaluateToolPermission(userId, 'read_emails');
-        if (!permission.allowed) {
-          return NextResponse.json({ reply: permission.note! });
-        }
-
         const gmailToken = await getGmailProviderTokenForCurrentUser();
         await markServiceTokenObserved(userId, 'gmail', gmailConnectionId);
         const emails = await listUnreadEmails(gmailToken);
@@ -642,17 +874,17 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({
-          reply: formatUnreadEmailsResponse(emails, permission.note ?? undefined),
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: formatUnreadEmailsResponse(emails, permissionNote),
+            mode: 'success',
+            recentMessages: recentConversation,
+          }),
           auditEntries: [executedLog],
         });
       }
 
       case 'gmail_today_summary': {
-        const permission = await evaluateToolPermission(userId, 'read_emails');
-        if (!permission.allowed) {
-          return NextResponse.json({ reply: permission.note! });
-        }
-
         const gmailToken = await getGmailProviderTokenForCurrentUser();
         await markServiceTokenObserved(userId, 'gmail', gmailConnectionId);
         const emails = await listTodayEmails(gmailToken);
@@ -669,27 +901,27 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({
-          reply: formatTodaySummaryResponse(summary, emails.length, permission.note ?? undefined),
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: formatTodaySummaryResponse(summary, emails.length, permissionNote),
+            mode: 'success',
+            recentMessages: recentConversation,
+          }),
           auditEntries: [executedLog],
         });
       }
 
       case 'gmail_send': {
-        const permission = await evaluateToolPermission(userId, 'send_email');
-        if (!permission.allowed) {
-          return NextResponse.json({ reply: permission.note! });
-        }
-
         const auditEntries: AuditEntry[] = [];
 
-        if (approvalStatus === 'approved' && classification) {
+        if (consumedApprovalMode && classification) {
           const approvedLog = await logAction({
             userId,
             action: classification.action,
             service: classification.service,
             riskLevel: classification.level,
             status: 'approved',
-            details: getApprovalDetails(classification.action, 'approved', approvalMode),
+            details: getApprovalDetails(classification.action, 'approved', consumedApprovalMode),
             metadata: classification.dataAffected,
             approvedBy: approverId,
             approvedAt: new Date(),
@@ -709,40 +941,62 @@ export async function POST(req: Request) {
           riskLevel: 'high',
           status: 'executed',
           details: `Sent a Gmail message to ${resolvedAction.to}.`,
-          metadata: resolvedAction.body,
-          approvedBy: approvalStatus === 'approved' ? approverId : null,
-          approvedAt: approvalStatus === 'approved' ? new Date() : null,
+          metadata: getHighRiskAuditMetadata(resolvedAction) ?? undefined,
+          approvedBy: consumedApprovalMode ? approverId : null,
+          approvedAt: consumedApprovalMode ? new Date() : null,
           executedAt: new Date(),
         });
         auditEntries.push(executedLog);
 
         return NextResponse.json({
-          reply: [
-            `Email sent successfully to ${resolvedAction.to}.`,
-            `Gmail message id: ${result.id}`,
-            `Gmail thread id: ${result.threadId}`,
-            permission.note,
-          ]
-            .filter(Boolean)
-            .join('\n\n'),
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: [
+              `Email sent successfully to ${resolvedAction.to}.`,
+              `Gmail message id: ${result.id}`,
+              `Gmail thread id: ${result.threadId}`,
+              permissionNote,
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
+            mode: 'success',
+            recentMessages: recentConversation,
+          }),
           auditEntries,
         });
       }
 
       case 'jira':
         return NextResponse.json({
-          reply:
-            'SecureDesk currently runs live Slack and Gmail paths through Auth0 Token Vault. Jira remains scaffolded in the repository but is not active in this tenant yet.',
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply:
+              'SecureDesk currently runs live Slack and Gmail paths through Auth0 Token Vault. Jira remains scaffolded in the repository but is not active in this tenant yet.',
+            mode: 'info',
+            recentMessages: recentConversation,
+          }),
         });
 
       case 'unknown':
         return NextResponse.json({
-          reply: formatUnknownActionResponse(resolvedAction.reason),
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: formatUnknownActionResponse(resolvedAction.reason),
+            mode: 'unsupported',
+            recentMessages: recentConversation,
+          }),
         });
 
       case 'help':
       default:
-        return NextResponse.json({ reply: formatHelpResponse() });
+        return NextResponse.json({
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: formatHelpResponse(),
+            mode: 'help',
+            recentMessages: recentConversation,
+          }),
+        });
     }
   } catch (error) {
     const details =
@@ -759,26 +1013,36 @@ export async function POST(req: Request) {
         status: 'failed',
         details,
         metadata: classification.dataAffected,
-        approvedBy: approvalStatus === 'approved' ? approverId : null,
-        approvedAt: approvalStatus === 'approved' ? new Date() : null,
+        approvedBy: consumedApprovalMode ? approverId : null,
+        approvedAt: consumedApprovalMode ? new Date() : null,
       });
 
       return NextResponse.json({
-        reply: [
-          'SecureDesk could not complete that action.',
-          details,
-          'If this happened during Slack or Gmail access, check the connected account, the Token Vault exchange, and the provider scopes.',
-        ].join('\n\n'),
+        reply: await presentReply({
+          userMessage: latestMessageText,
+          rawReply: [
+            'SecureDesk could not complete that action.',
+            details,
+            'If this happened during Slack or Gmail access, check the connected account, the Token Vault exchange, and the provider scopes.',
+          ].join('\n\n'),
+          mode: 'error',
+          recentMessages: recentConversation,
+        }),
         auditEntries: [failedLog],
       });
     }
 
     return NextResponse.json({
-      reply: [
-        'SecureDesk could not complete that action.',
-        details,
-        'If this happened during Slack or Gmail access, check the connected account, the Token Vault exchange, and the provider scopes.',
-      ].join('\n\n'),
+      reply: await presentReply({
+        userMessage: latestMessageText,
+        rawReply: [
+          'SecureDesk could not complete that action.',
+          details,
+          'If this happened during Slack or Gmail access, check the connected account, the Token Vault exchange, and the provider scopes.',
+        ].join('\n\n'),
+        mode: 'error',
+        recentMessages: recentConversation,
+      }),
     });
   }
 }

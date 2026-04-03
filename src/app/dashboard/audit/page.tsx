@@ -132,7 +132,9 @@ export default function AuditPage() {
         <h1 className="text-2xl font-semibold text-surface-900">Immutable Audit Trail</h1>
       </div>
       <p className="text-surface-600 max-w-2xl">
-        Every action taken by the AI is logged precisely with timestamps, risk level, status, and approval tracking. The panel on the right shows a live feed. Here you can search and export all events.
+        Every action taken by SecureDesk is logged with timestamps, risk level, status, and approval
+        tracking. The panel on the right streams the live trust feed, and this view lets you search
+        or export the history.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -201,15 +203,16 @@ export default function AuditPage() {
           <div className="text-center text-surface-600 py-12 text-sm">Loading audit entries...</div>
         ) : error ? (
           <div className="text-center text-red-300 py-12 text-sm">{error}</div>
-        ) : filteredLogs.length === 0 ? (
-          <div className="text-center text-surface-600 py-12">
-            <p className="font-medium text-lg mb-2">No matching audit events yet.</p>
-            <p className="text-sm">Run a Slack read or write action to populate the trail.</p>
-          </div>
-        ) : (
+          ) : filteredLogs.length === 0 ? (
+            <div className="text-center text-surface-600 py-12">
+              <p className="font-medium text-lg mb-2">No matching audit events yet.</p>
+              <p className="text-sm">Run a connected action to populate the trust history.</p>
+            </div>
+          ) : (
           <div className="space-y-3">
             <div className="rounded-xl border border-surface-300 bg-surface-100 px-4 py-3 text-xs text-surface-600">
-              This view keeps the current session trail even when persistence is unavailable. Export the CSV before recording your demo if you want a portable copy.
+              This view also preserves the current session feed when persistence is temporarily
+              unavailable. Export the CSV if you want a portable copy of the visible history.
             </div>
             {filteredLogs.map((log) => (
               <AuditEntry key={log.id} entry={log} />

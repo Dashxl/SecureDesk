@@ -44,7 +44,7 @@ export function AuditPanel() {
           </div>
           <div className="min-w-0">
             <h2 className="font-display text-xl font-bold leading-none text-white">Trust Center</h2>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-brand-200/90">Live Security Feed</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-brand-200/90">Live Trust Feed</p>
           </div>
         </div>
 
@@ -53,10 +53,10 @@ export function AuditPanel() {
             <div className="text-[11px] uppercase tracking-[0.2em] text-surface-700">Events</div>
             <div className="mt-1 text-2xl font-bold text-white">{logs.length}</div>
           </div>
-          <div className="rounded-[1.1rem] border border-brand-400/18 bg-[#261751] px-3 py-3">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-brand-200">Policy</div>
-            <div className="mt-1 text-sm font-semibold text-white">Token Vault + FGA</div>
-          </div>
+            <div className="rounded-[1.1rem] border border-brand-400/18 bg-[#261751] px-3 py-3">
+              <div className="text-[11px] uppercase tracking-[0.2em] text-brand-200">Policy</div>
+              <div className="mt-1 text-sm font-semibold text-white">Vault + FGA + Review</div>
+            </div>
         </div>
       </div>
 
@@ -70,7 +70,7 @@ export function AuditPanel() {
         ) : filteredLogs.length === 0 ? (
           <div className="text-center text-surface-600 mt-10">
             <ShieldCheck className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No actions recorded yet.</p>
+            <p className="text-sm">No trust events recorded yet.</p>
           </div>
         ) : (
           filteredLogs.map(log => <AuditEntry key={log.id} entry={log} />)

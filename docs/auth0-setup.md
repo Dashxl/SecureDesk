@@ -6,7 +6,7 @@ This guide matches the current SecureDesk implementation:
 - real Slack Connected Account through Token Vault
 - real Gmail Connected Account through Token Vault
 - Auth0 FGA enforcement
-- CIBA support with in-app fallback
+- CIBA support with in-app review fallback
 - Gemini Flash intent parsing on top of the deterministic runtime
 
 ## 1. Create the Regular Web Application
@@ -173,13 +173,13 @@ If your tenant supports it:
 1. Enable the `CIBA` grant type on the SecureDesk application
 2. Enable Guardian Push under:
    - `Security -> Multi-factor Auth`
-3. Enroll the demo user in Guardian
+3. Enroll the operating user in Guardian
 4. Fill:
    - `AUTH0_CIBA_CLIENT_ID`
    - `AUTH0_CIBA_CLIENT_SECRET`
    - `AUTH0_CIBA_AUDIENCE`
 
-If the tenant does not expose CIBA, SecureDesk will continue to work with the in-app approval fallback.
+If the tenant does not expose CIBA, SecureDesk will continue to work through the in-app approval path.
 
 ## 10. Gemini Flash
 
@@ -204,7 +204,7 @@ Incorrect:
 
 ## 12. Final verification
 
-Before recording the demo:
+Before recording:
 
 1. Connect Slack in Settings
 2. Connect Gmail in Settings

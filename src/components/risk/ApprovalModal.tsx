@@ -28,11 +28,11 @@ export function ApprovalModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="High-Risk Action Approval"
+      title="Release High-Impact Action"
       footer={
         <>
           <Button variant="ghost" onClick={onReject} disabled={isProcessing}>
-            Reject
+            Keep Blocked
           </Button>
           <Button
             variant="danger"
@@ -40,7 +40,7 @@ export function ApprovalModal({
             isLoading={isProcessing}
             className="shadow-red-500/20 shadow-lg"
           >
-            Approve Action
+            Release Action
           </Button>
         </>
       }
@@ -51,9 +51,10 @@ export function ApprovalModal({
             <AlertTriangle className="w-6 h-6 text-amber-500" />
           </div>
           <div>
-            <h3 className="text-surface-900 font-medium text-sm mb-1">Authorization Required</h3>
+            <h3 className="text-surface-900 font-medium text-sm mb-1">Explicit approval required</h3>
             <p className="text-surface-600 text-sm leading-relaxed">
-              This action requires explicit approval because it modifies or transmits data outside of SecureDesk.
+              This action would send or modify data outside SecureDesk, so it stays blocked until you
+              release it.
             </p>
           </div>
         </div>

@@ -39,7 +39,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Try: summarize my emails from today or post a message to #general-securedesk..."
+          placeholder="Ask SecureDesk to read Slack, summarize today's email, or prepare a reviewed write action..."
           className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent p-2 text-[15px] text-surface-950 outline-none placeholder:text-surface-700"
           disabled={disabled}
           rows={1}
@@ -53,7 +53,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         </button>
       </div>
       <div className="mx-auto mt-3 max-w-4xl text-center text-[10px] font-medium uppercase tracking-[0.22em] text-surface-700">
-        Gemini Flash intent layer • Auth0 Token Vault • Slack • Gmail • FGA • Audit trail
+        Gemini Flash intent layer | Auth0 Token Vault | Slack | Gmail | Auth0 FGA | Audit trail
       </div>
     </div>
   );

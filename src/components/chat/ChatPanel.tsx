@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { ChatMessage as ChatMessageComponent } from './ChatMessage';
 import { useChatStore } from '@/store/chat-store';
 import { StreamingIndicator } from './StreamingIndicator';
@@ -12,10 +13,50 @@ export function ChatPanel({
 }) {
   const { messages, isStreaming } = useChatStore();
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const [shouldShowConnectionOnboarding, setShouldShowConnectionOnboarding] = useState(false);
 
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function loadIntegrationStatus() {
+      try {
+        const response = await fetch('/api/integrations/status', {
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          if (!isCancelled) {
+            setShouldShowConnectionOnboarding(true);
+          }
+          return;
+        }
+
+        const data = (await response.json()) as { allConnected?: boolean };
+
+        if (!isCancelled) {
+          setShouldShowConnectionOnboarding(!data.allConnected);
+        }
+      } catch {
+        if (!isCancelled) {
+          setShouldShowConnectionOnboarding(true);
+        }
+      }
+    }
+
+    void loadIntegrationStatus();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [messages.length]);
 
   if (messages.length === 0) {
     return (
@@ -31,14 +72,32 @@ export function ChatPanel({
           </svg>
         </div>
         <h3 className="mb-2 font-display text-2xl font-bold text-white">
-          Operate through SecureDesk
+          Work through SecureDesk
         </h3>
         <p className="mx-auto max-w-xl text-sm leading-7 text-surface-700">
-          Ask in natural language. Gemini Flash maps your request to SecureDesk&apos;s deterministic
-          runtime, then Auth0 Token Vault, FGA, approvals, and audit logging take over. Try reading
-          Slack channels, summarizing today&apos;s emails, or sending a high-risk message that requires
-          approval.
+          Ask in natural language. SecureDesk translates the request, checks policy, and only then
+          reaches Slack or Gmail through Auth0 Token Vault. Start with a read action, then try a
+          write action that moves into review before release.
         </p>
+        {shouldShowConnectionOnboarding && (
+          <div className="mt-6 max-w-2xl rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4 text-left">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
+              Before you begin
+            </p>
+            <p className="mt-2 text-sm leading-7 text-amber-50">
+              Connect both Slack and Gmail in Settings first. SecureDesk only works inside apps that you
+              explicitly authorize through Auth0 Connected Accounts.
+            </p>
+            <div className="mt-4">
+              <Link
+                href="/dashboard/settings"
+                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+              >
+                Open Settings and connect apps
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

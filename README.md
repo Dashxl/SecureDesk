@@ -13,7 +13,7 @@ SecureDesk is built with:
 - Auth0 Token Vault
 - Auth0 Connected Accounts
 - Auth0 Fine-Grained Authorization (FGA)
-- Auth0 CIBA support with in-app fallback
+- Auth0 CIBA support with in-app review fallback
 - Gemini Flash for intent parsing
 
 ## What SecureDesk does
@@ -48,7 +48,7 @@ High-risk actions such as posting to Slack or sending an email are intercepted b
 
 Every action is written into the audit trail with service, action, risk level, user, metadata, timestamps, approval state, and export support.
 
-## Current live demo slice
+## Current live product slice
 
 The repository now contains a real end-to-end slice, not just mocked UX:
 
@@ -199,7 +199,7 @@ SecureDesk also shows the exact tuple values for the signed-in user in `/dashboa
 
 ## Verification
 
-Before recording the demo or deploying to judges, run:
+Before recording or deploying to judges, run:
 
 ```bash
 npm run lint

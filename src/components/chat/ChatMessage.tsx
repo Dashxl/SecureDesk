@@ -46,26 +46,26 @@ export function ChatMessage({ message, userPic, userName }: { message: ChatMessa
              <div className="mt-4 p-4 bg-surface-300/50 rounded-lg border border-surface-400">
                <div className="flex items-center gap-2 mb-2">
                  <ShieldAlert className="w-4 h-4 text-amber-500" />
-                 <span className="text-sm font-semibold text-amber-500">Action Pending Approval</span>
+                 <span className="text-sm font-semibold text-amber-500">Approval Required</span>
                </div>
-               <p className="text-xs text-surface-600 mb-3">Please review and authorize this action to proceed.</p>
-               <Button size="sm" onClick={() => setActiveApproval(message.approvalId!)}>
-                 Review & Approve
-               </Button>
-             </div>
-          )}
+               <p className="text-xs text-surface-600 mb-3">Review the action details before SecureDesk is allowed to continue.</p>
+                <Button size="sm" onClick={() => setActiveApproval(message.approvalId!)}>
+                  Review Action
+                </Button>
+              </div>
+           )}
 
           {message.cibaPending && (
             <div className="mt-4 rounded-lg border border-brand-400/20 bg-brand-500/10 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-brand-300" />
                 <span className="text-sm font-semibold text-brand-200">
-                  Waiting for your approval
+                  External approval in progress
                 </span>
               </div>
               <p className="text-xs text-surface-700">
-                Check your Auth0 Guardian notification or external approval channel. SecureDesk will
-                continue automatically after approval.
+                Confirm the request in Auth0 Guardian. SecureDesk will continue automatically once the
+                approval signal is verified.
               </p>
             </div>
           )}

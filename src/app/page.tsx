@@ -102,7 +102,7 @@ export default async function LandingPage() {
             {!authConfigured && (
               <div className="mt-8 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-5 py-4 text-left text-sm text-amber-100">
                 Auth0 is not configured yet. Add values for `AUTH0_SECRET`, `AUTH0_CLIENT_ID`,
-                `AUTH0_CLIENT_SECRET`, and `AUTH0_ISSUER_BASE_URL` in `.env.local` to unlock the live demo.
+                `AUTH0_CLIENT_SECRET`, and `AUTH0_ISSUER_BASE_URL` in `.env.local` to unlock the workspace.
               </div>
             )}
 

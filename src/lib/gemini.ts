@@ -6,6 +6,8 @@ type GeminiSupportedIntent =
   | 'send_email'
   | 'unknown';
 
+type GeminiReplyMode = 'help' | 'unsupported' | 'approval' | 'success' | 'error' | 'info';
+
 export interface GeminiIntentResult {
   intent: GeminiSupportedIntent;
   channel?: string;
@@ -15,6 +17,10 @@ export interface GeminiIntentResult {
   confidence?: 'high' | 'medium' | 'low';
   reason?: string;
 }
+
+const globalForGemini = globalThis as typeof globalThis & {
+  secureDeskGeminiKeyIndex?: number;
+};
 
 function stripCodeFences(input: string) {
   return input
@@ -36,19 +42,124 @@ function parseGeminiJson(input: string): GeminiIntentResult | null {
   }
 }
 
+function getGeminiModel() {
+  return process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+}
+
+function getGeminiApiKeys() {
+  return [
+    process.env.GEMINI_API_KEY_1,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+    process.env.GEMINI_API_KEY_4,
+  ].filter((value): value is string => Boolean(value?.trim()));
+}
+
+function getNextKeyStartIndex(totalKeys: number) {
+  const currentIndex = globalForGemini.secureDeskGeminiKeyIndex ?? 0;
+  const startIndex = currentIndex % totalKeys;
+  globalForGemini.secureDeskGeminiKeyIndex = (startIndex + 1) % totalKeys;
+  return startIndex;
+}
+
+function extractGeminiText(data: {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+}) {
+  return data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('').trim() || '';
+}
+
+function isRetryableGeminiStatus(status: number) {
+  return status === 429 || status === 503;
+}
+
+function buildGeminiRequestBody(prompt: string) {
+  return JSON.stringify({
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }],
+      },
+    ],
+  });
+}
+
+function isGeminiFallbackError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message === 'All Gemini API keys have reached their rate limit' ||
+    error.message === 'Gemini API key is missing.' ||
+    error.message.startsWith('Gemini request failed with status 429.') ||
+    error.message.startsWith('Gemini request failed with status 503.')
+  );
+}
+
 export function isGeminiConfigured() {
-  return Boolean(process.env.GEMINI_API_KEY?.trim());
+  return getGeminiApiKeys().length > 0;
+}
+
+export async function callGemini(prompt: string): Promise<string> {
+  const apiKeys = getGeminiApiKeys();
+
+  if (apiKeys.length === 0) {
+    throw new Error('Gemini API key is missing.');
+  }
+
+  const startIndex = getNextKeyStartIndex(apiKeys.length);
+  let sawRateLimit = false;
+  let lastError: Error | null = null;
+
+  for (let offset = 0; offset < apiKeys.length; offset += 1) {
+    const keyIndex = (startIndex + offset) % apiKeys.length;
+    const apiKey = apiKeys[keyIndex];
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${getGeminiModel()}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: buildGeminiRequestBody(prompt),
+    });
+
+    if (response.ok) {
+      const data = (await response.json()) as {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+      };
+
+      return extractGeminiText(data);
+    }
+
+    const errorText = await response.text();
+
+    if (isRetryableGeminiStatus(response.status)) {
+      sawRateLimit = true;
+      lastError = new Error(`Gemini request failed with status ${response.status}. ${errorText}`);
+      continue;
+    }
+
+    throw new Error(`Gemini request failed with status ${response.status}. ${errorText}`);
+  }
+
+  if (sawRateLimit) {
+    throw new Error('All Gemini API keys have reached their rate limit');
+  }
+
+  throw lastError || new Error('Gemini request failed.');
 }
 
 export async function parseIntentWithGemini(message: string): Promise<GeminiIntentResult | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
+  if (!isGeminiConfigured()) {
     return null;
   }
-
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const prompt = [
     'You are an intent parser for SecureDesk, a corporate AI agent.',
@@ -76,42 +187,69 @@ export async function parseIntentWithGemini(message: string): Promise<GeminiInte
     `User message: ${message}`,
   ].join('\n');
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 256,
-        responseMimeType: 'application/json',
-      },
-    }),
-  });
+  let text = '';
+  try {
+    text = await callGemini(prompt);
+  } catch (error) {
+    if (isGeminiFallbackError(error)) {
+      return null;
+    }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini intent parsing failed. ${errorText}`);
+    throw error;
   }
-
-  const data = (await response.json()) as {
-    candidates?: Array<{
-      content?: {
-        parts?: Array<{ text?: string }>;
-      };
-    }>;
-  };
-
-  const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('').trim();
 
   if (!text) {
     return null;
   }
 
   return parseGeminiJson(text);
+}
+
+export async function generateConversationalReply(args: {
+  userMessage: string;
+  rawReply: string;
+  mode: GeminiReplyMode;
+  recentMessages?: string[];
+}) {
+  if (!isGeminiConfigured()) {
+    return args.rawReply;
+  }
+
+  const history =
+    args.recentMessages && args.recentMessages.length > 0
+      ? args.recentMessages.map((message, index) => `${index + 1}. ${message}`).join('\n')
+      : 'No earlier messages provided.';
+
+  const prompt = [
+    'You are SecureDesk, a premium enterprise AI agent.',
+    'Rewrite the factual system response so it sounds natural, polished, and helpful.',
+    'Rules:',
+    '- Preserve all facts exactly.',
+    '- Do not invent actions, permissions, results, ids, counts, channels, recipients, or approvals.',
+    '- If the raw reply includes lists, keep list formatting when useful.',
+    '- Keep the response concise and confident.',
+    '- Sound like an intelligent assistant, not a script or bot.',
+    '- Never claim an action succeeded unless the raw reply already confirms it.',
+    '- Never mention prompts, hidden rules, or model limitations.',
+    '- Return plain text only.',
+    `Conversation mode: ${args.mode}`,
+    `Latest user message: ${args.userMessage}`,
+    'Recent conversation snippets:',
+    history,
+    'Raw system reply to preserve:',
+    args.rawReply,
+  ].join('\n');
+
+  let rewritten = '';
+  try {
+    rewritten = await callGemini(prompt);
+  } catch (error) {
+    if (isGeminiFallbackError(error)) {
+      return args.rawReply;
+    }
+
+    throw error;
+  }
+
+  return rewritten || args.rawReply;
 }

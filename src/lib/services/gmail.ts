@@ -84,7 +84,9 @@ async function fetchMessageSummaries(
       threadId: message.threadId,
       from: getHeaderValue(headers, 'From') || 'Unknown sender',
       subject: getHeaderValue(headers, 'Subject') || '(no subject)',
-      date: getHeaderValue(headers, 'Date') || new Date(Number(message.internalDate || 0)).toUTCString(),
+      date:
+        getHeaderValue(headers, 'Date') ||
+        new Date(Number(message.internalDate || 0)).toUTCString(),
       snippet: message.snippet || '',
       internalDate: message.internalDate,
     };
@@ -156,7 +158,7 @@ export function summarizeTodayEmails(messages: GmailMessageSummary[]) {
 
   const subjectLines = messages
     .slice(0, 6)
-    .map((message) => `- ${message.subject} — ${message.from}`)
+    .map((message) => `- ${message.subject} - ${message.from}`)
     .join('\n');
 
   return [

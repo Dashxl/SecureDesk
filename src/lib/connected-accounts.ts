@@ -1,4 +1,4 @@
-import { auth0 } from './auth0';
+import { auth0, getCurrentUserAccessToken, getTokenForService } from './auth0';
 import { getNormalizedIssuerBaseUrl } from './auth-env';
 import { ServiceType } from '@/types/risk';
 
@@ -176,6 +176,25 @@ export async function getConnectedAccountStatus(
   }
 }
 
+export async function hasUsableConnectedAccountViaTokenVault(
+  service: ConnectedAccountService
+) {
+  try {
+    const accessToken = await getCurrentUserAccessToken();
+    const providerToken = await getTokenForService(accessToken, getServiceConnectionName(service));
+
+    return {
+      connected: Boolean(providerToken),
+      error: null,
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      error: error instanceof Error ? error.message : 'Unable to verify the connected account through Token Vault.',
+    };
+  }
+}
+
 export async function initiateConnectedAccount(
   service: ConnectedAccountService,
   redirectUri: string
@@ -265,6 +284,14 @@ export async function getGmailConnectedAccounts() {
 
 export async function getGmailConnectedAccountStatus() {
   return getConnectedAccountStatus('gmail');
+}
+
+export async function hasUsableSlackConnectedAccountViaTokenVault() {
+  return hasUsableConnectedAccountViaTokenVault('slack');
+}
+
+export async function hasUsableGmailConnectedAccountViaTokenVault() {
+  return hasUsableConnectedAccountViaTokenVault('gmail');
 }
 
 export async function initiateGmailConnectedAccount(redirectUri: string) {
