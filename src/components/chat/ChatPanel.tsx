@@ -1,8 +1,11 @@
+'use client';
+
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChatMessage as ChatMessageComponent } from './ChatMessage';
 import { useChatStore } from '@/store/chat-store';
 import { StreamingIndicator } from './StreamingIndicator';
+import { useVisualViewport } from '@/hooks/use-visual-viewport';
 
 export function ChatPanel({
   userPic,
@@ -12,6 +15,7 @@ export function ChatPanel({
   userName?: string;
 }) {
   const { messages, isStreaming } = useChatStore();
+  const { height: viewportHeight } = useVisualViewport();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [integrationStatus, setIntegrationStatus] = useState<{
     shouldShowOnboarding: boolean;
@@ -52,7 +56,7 @@ export function ChatPanel({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [messages.length, isStreaming]);
+  }, [messages.length, isStreaming, viewportHeight]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -148,7 +152,10 @@ export function ChatPanel({
       : 'Open Settings and connect apps';
 
   return (
-    <div ref={scrollContainerRef} className="flex h-full min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+    <div 
+      ref={scrollContainerRef} 
+      className="flex h-full min-h-0 flex-1 overflow-y-auto p-3 overscroll-contain sm:p-4 md:p-6"
+    >
       {messages.length === 0 ? (
         <div className="flex min-h-full w-full flex-col items-center justify-center text-center text-surface-500">
           <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-brand-500/10 sm:h-16 sm:w-16">

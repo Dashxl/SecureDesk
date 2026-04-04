@@ -45,6 +45,8 @@ The product is built around a visible trust model:
 - Zustand for client state used by the Trust Center and audit views
 - Lucide React icons
 
+SecureDesk currently runs on a stable Next.js App Router foundation that was kept intentionally steady during hackathon implementation so the security flows, provider integrations, and approval runtime could be hardened without introducing last-minute framework migration risk.
+
 ### AI layer
 
 - Gemini `gemini-2.5-flash`
@@ -223,6 +225,18 @@ Recommended production setup:
 5. Open `/api/migrate` once in the deployed environment.
 
 No ORM migrations are required for the audit and approval core tables because they are created by the migration route.
+
+## Production-readiness note
+
+For the hackathon build, SecureDesk stays on a stable Next.js App Router baseline so the live Auth0, Slack, Gmail, approval, and audit flows remain predictable during judging.
+
+The post-hackathon hardening path is straightforward:
+
+- upgrade the framework stack to the latest supported Next.js LTS line
+- align the Auth0 SDK and React versions with that upgrade path
+- rerun the same Slack, Gmail, FGA, approval, and audit validation suite after the migration
+
+This keeps the judging build stable today while preserving a clear maintenance path for long-term production rollout.
 
 ## Auth0 setup checklist
 

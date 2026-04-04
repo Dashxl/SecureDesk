@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
 import { SendHorizontal } from 'lucide-react';
 
@@ -34,7 +36,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   return (
     <div
-      className="relative border-t border-white/10 bg-[#121a2d]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:p-4"
+      className="relative shrink-0 border-t border-white/10 bg-[#121a2d]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur touch-manipulation sm:p-4"
     >
       <div className="relative mx-auto flex max-w-4xl items-end gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm transition-all focus-within:border-brand-400/40 focus-within:ring-2 focus-within:ring-brand-500/20 sm:gap-3 sm:p-2.5">
         <textarea
