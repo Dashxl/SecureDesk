@@ -20,9 +20,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-[#11192B]/88 px-4 py-3 text-white backdrop-blur-xl lg:hidden">
       <div className="flex items-center justify-between gap-3">
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#202857] shadow-[0_18px_44px_rgba(4,7,17,0.28)]">
+        <Link href="/" className="overflow-hidden rounded-2xl border border-white/10 bg-[#202857] shadow-[0_18px_44px_rgba(4,7,17,0.28)]">
           <Image src={LogoWordmark} alt="SecureDesk" className="h-10 w-auto object-contain sm:h-12" priority />
-        </div>
+        </Link>
         
         {!isLoading && user && (
           <a href="/api/auth/logout" className="group shrink-0">

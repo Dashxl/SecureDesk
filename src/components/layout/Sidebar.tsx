@@ -22,7 +22,7 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex w-72 flex-col fixed inset-y-0 left-0 z-30 border-r border-white/10 bg-[#11192B] p-5">
       <div className="mb-4 px-1">
-        <div className="rounded-[1rem] bg-gradient-to-r from-white/[0.04] to-transparent px-3 py-3">
+        <Link href="/" className="block rounded-[1rem] bg-gradient-to-r from-white/[0.04] to-transparent px-3 py-3 transition hover:bg-white/[0.06]">
           <div className="flex items-center gap-3">
             <div className="h-10 w-[3px] rounded-full bg-gradient-to-b from-brand-300 to-brand-500" />
             <div className="w-[152px]">
@@ -38,7 +38,7 @@ export function Sidebar() {
           <div className="ml-6 mt-2 w-[152px] text-center text-[8px] uppercase tracking-[0.28em] text-brand-100/60">
             Corporate AI Control
           </div>
-        </div>
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-2 mt-2">

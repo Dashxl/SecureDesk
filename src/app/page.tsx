@@ -37,8 +37,6 @@ export default async function LandingPage() {
   const hasSession = Boolean(session?.user);
   const primaryHref = authConfigured ? (hasSession ? '/dashboard' : '/api/auth/login') : '#';
   const primaryLabel = hasSession ? 'Open Workspace' : 'Enter SecureDesk';
-  const secondaryHref = hasSession ? '/dashboard/audit' : '/dashboard/settings';
-  const secondaryLabel = hasSession ? 'Review Audit Trail' : 'Review Setup Guide';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-surface-0 text-surface-900">
@@ -57,17 +55,6 @@ export default async function LandingPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <a
-            href={authConfigured ? (hasSession ? '/dashboard' : '/api/auth/login') : '#'}
-            aria-disabled={!authConfigured}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-              authConfigured
-                ? 'text-surface-800 hover:text-white'
-                : 'pointer-events-none text-surface-600 opacity-60'
-            }`}
-          >
-            {hasSession ? 'Workspace' : 'Sign In'}
-          </a>
           <a
             href={primaryHref}
             aria-disabled={!authConfigured}
@@ -114,13 +101,8 @@ export default async function LandingPage() {
                 className={authConfigured ? '' : 'pointer-events-none opacity-60'}
               >
                 <Button variant="primary" size="lg" className="w-full rounded-2xl px-7 sm:w-auto">
-                  {hasSession ? 'Go to SecureDesk' : 'Launch Live Demo'}
+                  {hasSession ? 'Open Workspace' : 'Launch Live Demo'}
                   <ArrowRight className="h-4 w-4" />
-                </Button>
-              </a>
-              <a href={secondaryHref}>
-                <Button variant="ghost" size="lg" className="w-full rounded-2xl border border-surface-300/80 bg-white/5 px-7 sm:w-auto">
-                  {secondaryLabel}
                 </Button>
               </a>
             </div>
