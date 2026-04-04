@@ -169,6 +169,9 @@ function ServiceStatusCard({
   canRevoke?: boolean;
   showConnectAction?: boolean;
 }) {
+  const showConnectButton = showConnectAction && !connected && !available;
+  const showRevokeButton = canRevoke && (connected || available);
+
   return (
     <div className="rounded-xl border border-surface-300 bg-surface-100/50 p-4 space-y-4">
       <div className="flex items-start justify-between gap-3">
@@ -206,15 +209,15 @@ function ServiceStatusCard({
       </div>
 
       <div className="flex flex-wrap gap-3">
-        {showConnectAction && (
+        {showConnectButton && (
           <a
             href={connectHref}
             className="btn-primary inline-flex items-center justify-center px-4 py-2 text-sm"
           >
-            {connected || available ? `Reconnect ${title}` : `Connect ${title}`}
+            {`Connect ${title}`}
           </a>
         )}
-        {canRevoke && (
+        {showRevokeButton && (
           <form action={revokeAction} method="post">
             <button
               type="submit"
@@ -367,10 +370,8 @@ export default async function SettingsPage({
       : effectiveGmailStatus.observedPreviously
         ? 'Historical observed usage'
         : 'No live connection';
-  const canRevokeSlack =
-    (slackStatus.connected && slackStatus.accounts.length > 0) || effectiveSlackStatus.observedPreviously;
-  const canRevokeGmail =
-    (gmailStatus.connected && gmailStatus.accounts.length > 0) || effectiveGmailStatus.observedPreviously;
+  const canRevokeSlack = slackStatus.connected && slackStatus.accounts.length > 0;
+  const canRevokeGmail = gmailStatus.connected && gmailStatus.accounts.length > 0;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col space-y-5 overflow-y-auto p-4 sm:p-6">
@@ -425,12 +426,14 @@ export default async function SettingsPage({
                   available={effectiveSlackStatus.available}
                 />
               </div>
-              <a
-                href="/api/integrations/slack/connect"
-                className="btn-primary mt-4 inline-flex items-center justify-center px-4 py-2 text-sm"
-              >
-                {effectiveSlackStatus.connected ? 'Reconnect Slack' : 'Connect Slack'}
-              </a>
+              {!effectiveSlackStatus.connected && !effectiveSlackStatus.available && (
+                <a
+                  href="/api/integrations/slack/connect"
+                  className="btn-primary mt-4 inline-flex items-center justify-center px-4 py-2 text-sm"
+                >
+                  Connect Slack
+                </a>
+              )}
             </div>
 
             <div className="rounded-xl border border-surface-300 bg-surface-100/50 p-4">
@@ -451,12 +454,14 @@ export default async function SettingsPage({
                   available={effectiveGmailStatus.available}
                 />
               </div>
-              <a
-                href="/api/integrations/gmail/connect"
-                className="btn-primary mt-4 inline-flex items-center justify-center px-4 py-2 text-sm"
-              >
-                {effectiveGmailStatus.connected ? 'Reconnect Gmail' : 'Connect Gmail'}
-              </a>
+              {!effectiveGmailStatus.connected && !effectiveGmailStatus.available && (
+                <a
+                  href="/api/integrations/gmail/connect"
+                  className="btn-primary mt-4 inline-flex items-center justify-center px-4 py-2 text-sm"
+                >
+                  Connect Gmail
+                </a>
+              )}
             </div>
           </div>
 
@@ -488,13 +493,17 @@ export default async function SettingsPage({
 
       {slackParam === 'revoked' && (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-100">
-          Slack connected account revoked.
+          {slackMessage
+            ? `Slack access was cleared in SecureDesk. Auth0 returned: ${slackMessage}`
+            : 'Slack access revoked.'}
         </div>
       )}
 
       {gmailParam === 'revoked' && (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-100">
-          Gmail connected account revoked.
+          {gmailMessage
+            ? `Gmail access was cleared in SecureDesk. Auth0 returned: ${gmailMessage}`
+            : 'Gmail access revoked.'}
         </div>
       )}
 

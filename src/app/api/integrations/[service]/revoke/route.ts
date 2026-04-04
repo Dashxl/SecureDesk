@@ -30,9 +30,22 @@ export async function POST(
     );
   }
 
+  const userId = session.user.sub || session.user.email || 'unknown-user';
+  let revokeWarning: string | null = null;
+
   try {
-    await revokeConnectedAccount(service);
-    const userId = session.user.sub || session.user.email || 'unknown-user';
+    const revokeResult = await revokeConnectedAccount(service);
+    if (!revokeResult.revoked && revokeResult.message) {
+      revokeWarning = revokeResult.message;
+    }
+  } catch (error) {
+    revokeWarning =
+      error instanceof Error
+        ? error.message
+        : `Unable to revoke the ${service} connected account from Auth0.`;
+  }
+
+  try {
     await markServiceDisconnected(
       userId,
       service as SupportedService,
@@ -40,17 +53,21 @@ export async function POST(
         ? process.env.SLACK_CONNECTION_NAME || process.env.SLACK_CONNECTION_ID || 'slack'
         : process.env.GMAIL_CONNECTION_NAME || process.env.GMAIL_CONNECTION_ID || 'google-oauth2'
     );
-    return NextResponse.redirect(
-      new URL(`/dashboard/settings?${service}=revoked`, req.url)
-    );
   } catch (error) {
     const message =
       error instanceof Error
         ? error.message
-        : `Unable to revoke the ${service} connected account.`;
+        : `Unable to clear the ${service} connection state.`;
 
     return NextResponse.redirect(
       new URL(`/dashboard/settings?${service}=revoke-error&message=${encodeURIComponent(message)}`, req.url)
     );
   }
+
+  const redirectUrl = new URL(`/dashboard/settings?${service}=revoked`, req.url);
+  if (revokeWarning) {
+    redirectUrl.searchParams.set('message', revokeWarning);
+  }
+
+  return NextResponse.redirect(redirectUrl);
 }
