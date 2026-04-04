@@ -1,11 +1,12 @@
 import { initAuth0 } from '@auth0/nextjs-auth0';
-import { getNormalizedIssuerBaseUrl } from './auth-env';
+import { getNormalizedBaseUrl, getNormalizedIssuerBaseUrl } from './auth-env';
 
 const issuerBaseURL = getNormalizedIssuerBaseUrl();
+const baseURL = getNormalizedBaseUrl();
 
 export const auth0 = initAuth0({
   secret: process.env.AUTH0_SECRET,
-  baseURL: process.env.AUTH0_BASE_URL,
+  baseURL,
   issuerBaseURL: issuerBaseURL || process.env.AUTH0_ISSUER_BASE_URL,
   clientID: process.env.AUTH0_CLIENT_ID,
   clientSecret: process.env.AUTH0_CLIENT_SECRET,

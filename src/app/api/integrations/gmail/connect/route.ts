@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initiateGmailConnectedAccount } from '@/lib/connected-accounts';
 import { isAuth0Configured, safeGetSession } from '@/lib/auth-config';
+import { getNormalizedBaseUrl } from '@/lib/auth-env';
 
 const AUTH_SESSION_COOKIE = 'gmail_connect_auth_session';
 const STATE_COOKIE = 'gmail_connect_state';
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const requestUrl = new URL(req.url);
   const resume = requestUrl.searchParams.get('resume') === '1';
-  const baseUrl = process.env.AUTH0_BASE_URL || new URL(req.url).origin;
+  const baseUrl = getNormalizedBaseUrl() || new URL(req.url).origin;
   const redirectUri = `${baseUrl}/dashboard/settings/gmail-callback`;
 
   if (!resume) {

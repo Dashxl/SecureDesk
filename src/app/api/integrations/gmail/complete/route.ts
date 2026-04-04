@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { completeGmailConnectedAccount } from '@/lib/connected-accounts';
 import { isAuth0Configured, safeGetSession } from '@/lib/auth-config';
 import { markServiceConnected } from '@/lib/connected-service-store';
+import { getNormalizedBaseUrl } from '@/lib/auth-env';
 
 const AUTH_SESSION_COOKIE = 'gmail_connect_auth_session';
 const STATE_COOKIE = 'gmail_connect_state';
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Gmail connection state mismatch.' }, { status: 400 });
   }
 
-  const baseUrl = process.env.AUTH0_BASE_URL || new URL(req.url).origin;
+  const baseUrl = getNormalizedBaseUrl() || new URL(req.url).origin;
   const redirectUri = `${baseUrl}/dashboard/settings/gmail-callback`;
 
   try {

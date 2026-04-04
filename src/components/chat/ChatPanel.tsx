@@ -13,7 +13,17 @@ export function ChatPanel({
 }) {
   const { messages, isStreaming } = useChatStore();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [shouldShowConnectionOnboarding, setShouldShowConnectionOnboarding] = useState(false);
+  const [integrationStatus, setIntegrationStatus] = useState<{
+    shouldShowOnboarding: boolean;
+    slackConnected: boolean;
+    gmailConnected: boolean;
+    slackSource?: string;
+  }>({
+    shouldShowOnboarding: false,
+    slackConnected: false,
+    gmailConnected: false,
+    slackSource: undefined,
+  });
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -55,19 +65,39 @@ export function ChatPanel({
 
         if (!response.ok) {
           if (!isCancelled) {
-            setShouldShowConnectionOnboarding(true);
+            setIntegrationStatus({
+              shouldShowOnboarding: true,
+              slackConnected: false,
+              gmailConnected: false,
+              slackSource: undefined,
+            });
           }
           return;
         }
 
-        const data = (await response.json()) as { allConnected?: boolean };
+        const data = (await response.json()) as {
+          allConnected?: boolean;
+          slackConnected?: boolean;
+          gmailConnected?: boolean;
+          slackSource?: string;
+        };
 
         if (!isCancelled) {
-          setShouldShowConnectionOnboarding(!data.allConnected);
+          setIntegrationStatus({
+            shouldShowOnboarding: !data.allConnected,
+            slackConnected: Boolean(data.slackConnected),
+            gmailConnected: Boolean(data.gmailConnected),
+            slackSource: data.slackSource,
+          });
         }
       } catch {
         if (!isCancelled) {
-          setShouldShowConnectionOnboarding(true);
+          setIntegrationStatus({
+            shouldShowOnboarding: true,
+            slackConnected: false,
+            gmailConnected: false,
+            slackSource: undefined,
+          });
         }
       }
     }
@@ -78,6 +108,31 @@ export function ChatPanel({
       isCancelled = true;
     };
   }, [messages.length]);
+
+  const onboardingBody = (() => {
+    if (integrationStatus.slackConnected && integrationStatus.gmailConnected) {
+      return null;
+    }
+
+    if (integrationStatus.slackConnected && !integrationStatus.gmailConnected) {
+      if (integrationStatus.slackSource === 'slack-sign-in') {
+        return 'Slack is already ready through your sign-in session. If you want SecureDesk to work with Gmail too, connect Gmail in Settings.';
+      }
+
+      return 'Slack is already connected. If you want SecureDesk to work with Gmail too, connect Gmail in Settings.';
+    }
+
+    if (!integrationStatus.slackConnected && integrationStatus.gmailConnected) {
+      return 'Gmail is already connected. Connect Slack in Settings if you want SecureDesk to work across both apps.';
+    }
+
+    return 'Connect Slack and Gmail in Settings first. SecureDesk only works inside apps that you explicitly authorize through Auth0 Connected Accounts.';
+  })();
+
+  const onboardingButtonLabel =
+    integrationStatus.slackConnected || integrationStatus.gmailConnected
+      ? 'Open Settings'
+      : 'Open Settings and connect apps';
 
   return (
     <div ref={scrollContainerRef} className="flex h-full min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
@@ -101,18 +156,17 @@ export function ChatPanel({
             reaches Slack or Gmail through Auth0 Token Vault. Start with a read action, then try a
             write action that moves into review before release.
           </p>
-          {shouldShowConnectionOnboarding && (
+          {integrationStatus.shouldShowOnboarding && onboardingBody && (
             <div className="mt-6 w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-left sm:px-5">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
                 Before you begin
               </p>
               <p className="mt-2 text-sm leading-7 text-amber-50">
-                Connect both Slack and Gmail in Settings first. SecureDesk only works inside apps that you
-                explicitly authorize through Auth0 Connected Accounts.
+                {onboardingBody}
               </p>
               <div className="mt-4">
                 <Link href="/dashboard/settings" className="inline-flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15 sm:w-auto">
-                  Open Settings and connect apps
+                  {onboardingButtonLabel}
                 </Link>
               </div>
             </div>

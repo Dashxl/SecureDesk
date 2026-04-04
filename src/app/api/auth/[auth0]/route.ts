@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, context: { params: { auth0: stri
       login: (async (req: NextRequest, ctx: { params: { auth0: string[] } }) => {
         const loginUrl = new URL(req.url);
         const loginPurpose = loginUrl.searchParams.get('purpose');
-        const returnTo = loginUrl.searchParams.get('returnTo') || undefined;
+        const returnTo = loginUrl.searchParams.get('returnTo') || '/dashboard';
 
         if (loginPurpose === 'connect-slack' || loginPurpose === 'connect-gmail') {
           return auth0.handleLogin(req, ctx, {
