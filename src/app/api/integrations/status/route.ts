@@ -54,12 +54,14 @@ export async function GET() {
 
   const slackSnapshot = serviceSnapshots.find((snapshot) => snapshot.service === 'slack');
   const gmailSnapshot = serviceSnapshots.find((snapshot) => snapshot.service === 'gmail');
-  const slackConnected =
+  const slackConnected = slackAccountStatus.connected;
+  const gmailConnected = gmailAccountStatus.connected;
+  const slackAvailable =
     slackStatus.connected ||
     slackAccountStatus.connected ||
     slackSnapshot?.status === 'connected' ||
     (isSlackPrimaryIdentity(userId) && slackStatus.connected);
-  const gmailConnected =
+  const gmailAvailable =
     gmailStatus.connected || gmailAccountStatus.connected || gmailSnapshot?.status === 'connected';
 
   const slackSource = slackAccountStatus.connected
@@ -82,7 +84,10 @@ export async function GET() {
   return NextResponse.json({
     slackConnected,
     gmailConnected,
+    slackAvailable,
+    gmailAvailable,
     allConnected: slackConnected && gmailConnected,
+    allAvailable: slackAvailable && gmailAvailable,
     slackSource,
     gmailSource,
     slackError: slackStatus.error,

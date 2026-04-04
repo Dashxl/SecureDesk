@@ -17,11 +17,15 @@ export function ChatPanel({
     shouldShowOnboarding: boolean;
     slackConnected: boolean;
     gmailConnected: boolean;
+    slackAvailable: boolean;
+    gmailAvailable: boolean;
     slackSource?: string;
   }>({
     shouldShowOnboarding: false,
     slackConnected: false,
     gmailConnected: false,
+    slackAvailable: false,
+    gmailAvailable: false,
     slackSource: undefined,
   });
 
@@ -69,6 +73,8 @@ export function ChatPanel({
               shouldShowOnboarding: true,
               slackConnected: false,
               gmailConnected: false,
+              slackAvailable: false,
+              gmailAvailable: false,
               slackSource: undefined,
             });
           }
@@ -77,16 +83,21 @@ export function ChatPanel({
 
         const data = (await response.json()) as {
           allConnected?: boolean;
+          allAvailable?: boolean;
           slackConnected?: boolean;
           gmailConnected?: boolean;
+          slackAvailable?: boolean;
+          gmailAvailable?: boolean;
           slackSource?: string;
         };
 
         if (!isCancelled) {
           setIntegrationStatus({
-            shouldShowOnboarding: !data.allConnected,
+            shouldShowOnboarding: !data.allAvailable,
             slackConnected: Boolean(data.slackConnected),
             gmailConnected: Boolean(data.gmailConnected),
+            slackAvailable: Boolean(data.slackAvailable),
+            gmailAvailable: Boolean(data.gmailAvailable),
             slackSource: data.slackSource,
           });
         }
@@ -96,6 +107,8 @@ export function ChatPanel({
             shouldShowOnboarding: true,
             slackConnected: false,
             gmailConnected: false,
+            slackAvailable: false,
+            gmailAvailable: false,
             slackSource: undefined,
           });
         }
@@ -110,11 +123,11 @@ export function ChatPanel({
   }, [messages.length]);
 
   const onboardingBody = (() => {
-    if (integrationStatus.slackConnected && integrationStatus.gmailConnected) {
+    if (integrationStatus.slackAvailable && integrationStatus.gmailAvailable) {
       return null;
     }
 
-    if (integrationStatus.slackConnected && !integrationStatus.gmailConnected) {
+    if (integrationStatus.slackAvailable && !integrationStatus.gmailAvailable) {
       if (integrationStatus.slackSource === 'slack-sign-in') {
         return 'Slack is already ready through your sign-in session. If you want SecureDesk to work with Gmail too, connect Gmail in Settings.';
       }
@@ -122,7 +135,7 @@ export function ChatPanel({
       return 'Slack is already connected. If you want SecureDesk to work with Gmail too, connect Gmail in Settings.';
     }
 
-    if (!integrationStatus.slackConnected && integrationStatus.gmailConnected) {
+    if (!integrationStatus.slackAvailable && integrationStatus.gmailAvailable) {
       return 'Gmail is already connected. Connect Slack in Settings if you want SecureDesk to work across both apps.';
     }
 
@@ -130,7 +143,7 @@ export function ChatPanel({
   })();
 
   const onboardingButtonLabel =
-    integrationStatus.slackConnected || integrationStatus.gmailConnected
+    integrationStatus.slackAvailable || integrationStatus.gmailAvailable
       ? 'Open Settings'
       : 'Open Settings and connect apps';
 

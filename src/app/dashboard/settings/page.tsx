@@ -25,10 +25,12 @@ function deriveDisplayStatus(args: {
 }) {
   const snapshotConnected = args.snapshot?.status === 'connected';
   const runtimeConnected = args.runtimeConnected === true;
+  const available = args.connected || snapshotConnected || runtimeConnected;
 
-  if (args.connected || snapshotConnected || runtimeConnected) {
+  if (available) {
     return {
-      connected: true,
+      connected: args.connected,
+      available,
       accounts:
         args.accounts.length > 0
           ? args.accounts
@@ -47,6 +49,7 @@ function deriveDisplayStatus(args: {
 
   return {
     connected: false,
+    available: false,
     accounts: [],
     error: args.error || args.runtimeError || null,
     derivedFromObservedUsage: false,
@@ -115,16 +118,26 @@ function TechnicalDisclosure({
   );
 }
 
-function SlackConnectionPill({ connected }: { connected: boolean }) {
+function SlackConnectionPill({
+  connected,
+  available,
+}: {
+  connected: boolean;
+  available: boolean;
+}) {
+  const stateClass = connected
+    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+    : available
+      ? 'border-sky-500/30 bg-sky-500/10 text-sky-200'
+      : 'border-amber-500/30 bg-amber-500/10 text-amber-200';
+
+  const stateLabel = connected ? 'Connected' : available ? 'Available' : 'Not connected';
+
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
-        connected
-          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-          : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
-      }`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${stateClass}`}
     >
-      {connected ? 'Connected' : 'Not connected'}
+      {stateLabel}
     </span>
   );
 }
@@ -133,6 +146,7 @@ function ServiceStatusCard({
   title,
   icon,
   connected,
+  available,
   connectionCount,
   lastObserved,
   statusSource,
@@ -144,6 +158,7 @@ function ServiceStatusCard({
   title: string;
   icon: React.ReactNode;
   connected: boolean;
+  available: boolean;
   connectionCount: number;
   lastObserved?: string | null;
   statusSource: string;
@@ -164,11 +179,13 @@ function ServiceStatusCard({
             <p className="text-xs text-surface-600">
               {connected
                 ? `${connectionCount} connected account${connectionCount === 1 ? '' : 's'}`
-                : 'No connected account'}
+                : available
+                  ? 'Available through runtime'
+                  : 'No connected account'}
             </p>
           </div>
         </div>
-        <SlackConnectionPill connected={connected} />
+        <SlackConnectionPill connected={connected} available={available} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
@@ -272,6 +289,7 @@ export default async function SettingsPage({
     slackParam === 'connected'
       ? {
           connected: true,
+          available: true,
           accounts:
             resolvedSlackStatus.accounts.length > 0
               ? resolvedSlackStatus.accounts
@@ -289,6 +307,7 @@ export default async function SettingsPage({
       : slackParam === 'revoked'
         ? {
             connected: false,
+            available: false,
             accounts: [],
             error: null,
             derivedFromObservedUsage: false,
@@ -300,6 +319,7 @@ export default async function SettingsPage({
     gmailParam === 'connected'
       ? {
           connected: true,
+          available: true,
           accounts:
             resolvedGmailStatus.accounts.length > 0
               ? resolvedGmailStatus.accounts
@@ -317,6 +337,7 @@ export default async function SettingsPage({
       : gmailParam === 'revoked'
         ? {
             connected: false,
+            available: false,
             accounts: [],
             error: null,
             derivedFromObservedUsage: false,
@@ -324,8 +345,8 @@ export default async function SettingsPage({
             runtimeError: null,
           }
         : resolvedGmailStatus;
-  const connectedServicesCount = Number(effectiveSlackStatus.connected) + Number(effectiveGmailStatus.connected);
-  const needsConnectionOnboarding = connectedServicesCount < 2;
+  const readyServicesCount = Number(effectiveSlackStatus.available) + Number(effectiveGmailStatus.available);
+  const needsConnectionOnboarding = readyServicesCount < 2;
   const slackStateSource = effectiveSlackStatus.derivedFromRuntimeCheck
     ? 'Token Vault runtime check'
     : effectiveSlackStatus.derivedFromObservedUsage
@@ -369,7 +390,7 @@ export default async function SettingsPage({
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-surface-100/40 px-4 py-3 text-sm text-surface-600">
-              {connectedServicesCount}/2 required app connections are active.
+              {readyServicesCount}/2 required app connections are ready.
             </div>
           </div>
 
@@ -387,7 +408,10 @@ export default async function SettingsPage({
                     </p>
                   </div>
                 </div>
-                <SlackConnectionPill connected={effectiveSlackStatus.connected} />
+                <SlackConnectionPill
+                  connected={effectiveSlackStatus.connected}
+                  available={effectiveSlackStatus.available}
+                />
               </div>
               <a
                 href="/api/integrations/slack/connect"
@@ -410,7 +434,10 @@ export default async function SettingsPage({
                     </p>
                   </div>
                 </div>
-                <SlackConnectionPill connected={effectiveGmailStatus.connected} />
+                <SlackConnectionPill
+                  connected={effectiveGmailStatus.connected}
+                  available={effectiveGmailStatus.available}
+                />
               </div>
               <a
                 href="/api/integrations/gmail/connect"
@@ -698,6 +725,7 @@ export default async function SettingsPage({
             title="Slack"
             icon={<Slack className="h-5 w-5" />}
             connected={effectiveSlackStatus.connected}
+            available={effectiveSlackStatus.available}
             connectionCount={effectiveSlackStatus.accounts.length}
             lastObserved={slackSnapshot?.lastUsed?.toISOString?.() || slackSnapshot?.lastUsed?.toString?.() || null}
             statusSource={slackStateSource}
@@ -710,6 +738,7 @@ export default async function SettingsPage({
             title="Gmail"
             icon={<Mail className="h-5 w-5" />}
             connected={effectiveGmailStatus.connected}
+            available={effectiveGmailStatus.available}
             connectionCount={effectiveGmailStatus.accounts.length}
             lastObserved={gmailSnapshot?.lastUsed?.toISOString?.() || gmailSnapshot?.lastUsed?.toString?.() || null}
             statusSource={gmailStateSource}
@@ -723,21 +752,21 @@ export default async function SettingsPage({
         <div className="rounded-xl border border-surface-300 bg-surface-100/50 p-4 text-xs text-surface-600 space-y-2">
           <p>Observed refreshes are stored when SecureDesk successfully exchanges a provider token through Token Vault.</p>
           {effectiveSlackStatus.derivedFromObservedUsage && (
-            <p>Slack is currently shown as connected because SecureDesk recently used a valid Slack provider token successfully.</p>
+            <p>Slack is currently shown as available because SecureDesk recently used a valid Slack provider token successfully.</p>
           )}
           {effectiveGmailStatus.derivedFromObservedUsage && (
-            <p>Gmail is currently shown as connected because SecureDesk recently used a valid Gmail provider token successfully.</p>
+            <p>Gmail is currently shown as available because SecureDesk recently used a valid Gmail provider token successfully.</p>
           )}
           {effectiveSlackStatus.derivedFromRuntimeCheck && (
-            <p>Slack is currently shown as connected because SecureDesk confirmed a live Token Vault exchange for this user.</p>
+            <p>Slack is currently shown as available because SecureDesk confirmed a live Token Vault exchange for this user.</p>
           )}
           {effectiveGmailStatus.derivedFromRuntimeCheck && (
-            <p>Gmail is currently shown as connected because SecureDesk confirmed a live Token Vault exchange for this user.</p>
+            <p>Gmail is currently shown as available because SecureDesk confirmed a live Token Vault exchange for this user.</p>
           )}
-          {effectiveSlackStatus.connected && !canRevokeSlack && (
+          {effectiveSlackStatus.available && !effectiveSlackStatus.connected && (
             <p>Slack is currently available to SecureDesk, but no revocable Auth0 Connected Account record was found for this user.</p>
           )}
-          {effectiveGmailStatus.connected && !canRevokeGmail && (
+          {effectiveGmailStatus.available && !effectiveGmailStatus.connected && (
             <p>Gmail is currently available to SecureDesk, but no revocable Auth0 Connected Account record was found for this user.</p>
           )}
         </div>
