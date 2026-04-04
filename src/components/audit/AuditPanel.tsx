@@ -80,7 +80,7 @@ export function AuditPanel() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
         {isLoading ? (
           <>
             <div className="h-28 bg-surface-200 animate-pulse rounded-xl" />

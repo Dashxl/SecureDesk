@@ -286,8 +286,8 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="relative mx-auto flex h-full w-full flex-col">
-      <div className="flex flex-col gap-4 border-b border-white/10 bg-[#121a2d]/82 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+    <div className="relative mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <div className="shrink-0 flex flex-col gap-4 border-b border-white/10 bg-[#121a2d]/82 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#202857]">
             <Image src={LogoMark} alt="SecureDesk mark" className="h-11 w-11 object-cover" />
@@ -312,9 +312,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <ChatPanel userPic={user?.picture} userName={user?.name || undefined} />
+      <div className="min-h-0 flex-1 flex flex-col">
+        <ChatPanel userPic={user?.picture} userName={user?.name || undefined} />
+      </div>
 
-      <div className="mt-auto">
+      <div className="mt-auto shrink-0">
         <ChatInput onSend={handleSend} disabled={isLoading || isApproving || !!activeApprovalId} />
       </div>
 
