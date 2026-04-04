@@ -39,12 +39,15 @@ type ChatPayload = {
 
 type ResolvedAction =
   | { kind: 'help' }
+  | { kind: 'identity' }
   | { kind: 'unknown'; reason?: string }
   | { kind: 'slack_list' }
   | { kind: 'slack_post'; channel: string; text: string }
   | { kind: 'gmail_unread' }
   | { kind: 'gmail_today_summary' }
   | { kind: 'gmail_send'; to: string; body: string };
+
+type ReplyLanguage = 'en' | 'es';
 
 function getLatestMessageText(
   message: { content?: string; parts?: Array<{ type?: string; text?: string }> } | undefined
@@ -92,33 +95,133 @@ function formatChannelsResponse(
     .join('\n\n');
 }
 
-function formatHelpResponse() {
+function detectReplyLanguage(message: string): ReplyLanguage {
+  const normalized = message.trim().toLowerCase();
+
+  if (!normalized) {
+    return 'en';
+  }
+
+  const spanishSignals = [
+    /\b(hola|gracias|correo|correos|canal|canales|enviar|envia|mandar|manda|resumir|resume|hoy|quien|qué|que|eres|puedes|ayuda|lee|lista|muestra|mensaje)\b/,
+    /[¿¡]/,
+    /(?:ción|mente|estás|cómo|tú|día|acción)/,
+  ];
+
+  return spanishSignals.some((pattern) => pattern.test(normalized)) ? 'es' : 'en';
+}
+
+function formatHelpResponse(language: ReplyLanguage = 'en') {
+  if (language === 'es') {
+    return [
+      'SecureDesk es tu workspace empresarial de IA para acciones delegadas en Slack y Gmail con límites de confianza visibles.',
+      'Puedes escribir de forma natural o usar comandos directos como:',
+      '- `List my Slack channels`',
+      '- `Post a message to #general-securedesk saying: Hello from SecureDesk`',
+      '- `List my unread emails`',
+      '- `Summarize my emails from today`',
+      '- `Send an email to teammate@example.com saying: Hello from SecureDesk`',
+      'Slack y Gmail funcionan a través de Auth0 Token Vault, Auth0 FGA gobierna el acceso a herramientas, las acciones de mayor impacto pasan por aprobación explícita y cada decisión queda registrada en una auditoría persistente.',
+      'Puedes pedirme las acciones en español y yo las traduzco a la ruta de ejecución más segura disponible en este workspace.',
+    ].join('\n\n');
+  }
+
   return [
-    'SecureDesk translates natural language into a tightly scoped action plan, then executes only inside its policy boundary.',
+    'SecureDesk is your enterprise AI workspace for delegated actions across Slack and Gmail with visible trust boundaries.',
     'You can ask naturally or use direct commands like:',
     '- `List my Slack channels`',
     '- `Post a message to #general-securedesk saying: Hello from SecureDesk`',
     '- `List my unread emails`',
     '- `Summarize my emails from today`',
     '- `Send an email to teammate@example.com saying: Hello from SecureDesk`',
-    'Slack and Gmail run through Auth0 Token Vault. Auth0 FGA governs tool access. High-impact actions pause for explicit approval before SecureDesk proceeds, and audit plus approval state persist in Postgres.',
-    'Gemini helps SecureDesk understand and refine the conversation, but the execution layer remains deterministic.',
+    'Slack and Gmail run through Auth0 Token Vault, Auth0 FGA governs tool access, high-impact actions pause for explicit approval, and every decision is recorded in a persistent audit trail.',
+    'Ask naturally and I will translate the request into the safest executable action path available in this workspace.',
   ].join('\n\n');
 }
 
-function formatUnknownActionResponse(reason?: string) {
+function formatIdentityResponse(language: ReplyLanguage = 'en') {
+  if (language === 'es') {
+    return [
+      'Soy SecureDesk, tu agente de IA empresarial para trabajo delegado en Slack y Gmail.',
+      'Puedo leer canales, publicar mensajes aprobados en Slack, revisar correos no leídos, resumir la actividad de Gmail de hoy y enviar correos aprobados, mientras Auth0 Token Vault, Auth0 FGA, la capa de revisión y la auditoría persistente mantienen cada acción dentro de límites de seguridad visibles.',
+    ].join('\n\n');
+  }
+
   return [
-    "SecureDesk couldn't route that request to a supported action yet.",
+    'I am SecureDesk, your enterprise AI agent for delegated work across Slack and Gmail.',
+    'I can read channels, post approved Slack messages, review unread Gmail, summarize today\'s email activity, and send approved emails while Auth0 Token Vault, Auth0 FGA, approval review, and a persistent audit trail keep every action inside visible security boundaries.',
+  ].join('\n\n');
+}
+
+function formatUnknownActionResponse(reason?: string, language: ReplyLanguage = 'en') {
+  if (language === 'es') {
+    return [
+      'No pude mapear esa solicitud a una de las acciones que puedo ejecutar en este workspace en este momento.',
+      reason,
+      'En este workspace puedo ayudarte con:',
+      '- listar canales de Slack',
+      '- publicar un mensaje en Slack',
+      '- listar correos no leídos de Gmail',
+      '- resumir los correos de hoy en Gmail',
+      '- enviar un correo',
+      'Si quieres, reformula la solicitud de forma natural y vuelvo a intentarlo.',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
+  return [
+    "I couldn't route that request to one of the workspace actions I can execute right now.",
     reason,
-    'Current actions available in this workspace:',
+    'In this workspace, I can help you with:',
     '- list Slack channels',
     '- post a Slack message',
     '- list unread Gmail messages',
     '- summarize today\'s Gmail messages',
     '- send an email',
+    'If you want, rephrase the request naturally and I will try to map it for you.',
   ]
     .filter(Boolean)
     .join('\n\n');
+}
+
+function isIdentityOrGreetingRequest(message: string) {
+  const normalized = message.trim().toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  const identityPatterns = [
+    /\bwho are you\b/,
+    /\bwhat are you\b/,
+    /\btell me about yourself\b/,
+    /\bquien eres\b/,
+    /\bqué eres\b/,
+    /\bque eres\b/,
+    /\bquien eres tu\b/,
+    /\bqué haces\b/,
+    /\bque haces\b/,
+  ];
+
+  if (identityPatterns.some((pattern) => pattern.test(normalized))) {
+    return true;
+  }
+
+  const greetingPatterns = [
+    /^hi$/,
+    /^hello$/,
+    /^hey$/,
+    /^hola$/,
+    /^buenas$/,
+    /^buenos dias$/,
+    /^buen día$/,
+    /^buen dia$/,
+    /^buenas tardes$/,
+    /^buenas noches$/,
+  ];
+
+  return greetingPatterns.some((pattern) => pattern.test(normalized));
 }
 
 function isSlackListRequest(message: string) {
@@ -126,22 +229,26 @@ function isSlackListRequest(message: string) {
 
   return (
     lower.includes('slack') &&
-    lower.includes('channel') &&
-    /(list|show|read|display|what)/i.test(lower)
+    (lower.includes('channel') || lower.includes('canal')) &&
+    /(list|show|read|display|what|muestr|lista|lee|cuales)/i.test(lower)
   );
 }
 
 function extractSlackPostRequest(message: string) {
   const patterns = [
-    /post\s+(?:a\s+)?message\s+to\s+(#[\w-]+|[CGD][A-Z0-9]+)\s+(?:saying|that says|with text)\s*:?\s*([\s\S]+)/i,
-    /send\s+(?:a\s+)?slack\s+message\s+to\s+(#[\w-]+|[CGD][A-Z0-9]+)\s+(?:saying|that says|with text)\s*:?\s*([\s\S]+)/i,
+    // English rules
+    /post\s+(?:a\s+)?message\s+to\s+(#\s*[\w-]+|[CGD][A-Z0-9]+)\s+(?:saying|that says|with text)\s*:?\s*([\s\S]+)/i,
+    /send\s+(?:a\s+)?slack\s+message\s+to\s+(#\s*[\w-]+|[CGD][A-Z0-9]+)\s+(?:saying|that says|with text)\s*:?\s*([\s\S]+)/i,
+    // Spanish rules
+    /mand(?:a|ar|e)\s+(?:un\s+)?(?:mensaje|msj)\s+(?:a|al canal)\s+(#\s*[\w-]+|[CGD][A-Z0-9]+)\s+(?:diciendo|que diga|con el texto)\s*:?\s*([\s\S]+)/i,
+    /envi(?:a|ar|e)\s+(?:un\s+)?(?:mensaje|msj)\s+(?:de\s+slack\s+)?(?:a|al canal)\s+(#\s*[\w-]+|[CGD][A-Z0-9]+)\s+(?:diciendo|que diga|con el texto)\s*:?\s*([\s\S]+)/i,
   ];
 
   for (const pattern of patterns) {
     const match = message.match(pattern);
     if (match) {
       return {
-        channel: match[1].trim(),
+        channel: match[1].replace(/\s+/g, ''),
         text: match[2].trim(),
       };
     }
@@ -153,25 +260,29 @@ function extractSlackPostRequest(message: string) {
 function isGmailUnreadRequest(message: string) {
   const lower = message.toLowerCase();
   return (
-    /\bunread\b/.test(lower) &&
-    /\b(email|emails|gmail|inbox)\b/.test(lower) &&
-    /(list|show|read|check|what|fetch)/i.test(lower)
+    (/\bunread\b/.test(lower) || /\bno le[ií]dos?\b/.test(lower)) &&
+    /\b(email|emails|gmail|inbox|correos?|mensajes?)\b/.test(lower) &&
+    /(list|show|read|check|what|fetch|muestr|lista|lee|cuales|tengo)/i.test(lower)
   );
 }
 
 function isGmailTodaySummaryRequest(message: string) {
   const lower = message.toLowerCase();
   return (
-    /\b(today|todays|today's)\b/.test(lower) &&
-    /\b(email|emails|gmail)\b/.test(lower) &&
-    /(summarize|summary|digest|recap|brief|what)/i.test(lower)
+    (/\b(today|todays|today's)\b/.test(lower) || /\b(hoy|diarios?)\b/.test(lower)) &&
+    /\b(email|emails|gmail|correos?)\b/.test(lower) &&
+    /(summarize|summary|digest|recap|brief|what|resum|dime)/i.test(lower)
   );
 }
 
 function extractSendEmailRequest(message: string) {
   const patterns = [
+    // English
     /send\s+(?:an?\s+)?email\s+to\s+([^\s,;]+@[^\s,;]+)\s+(?:saying|that says|with message)\s*:?\s*([\s\S]+)/i,
     /email\s+([^\s,;]+@[^\s,;]+)\s+(?:saying|that says|with message)\s*:?\s*([\s\S]+)/i,
+    // Spanish
+    /envi(?:a|ar|e)\s+(?:un\s+)?(?:correo|email)\s+a\s+([^\s,;]+@[^\s,;]+)\s+(?:diciendo|que diga|con el texto)\s*:?\s*([\s\S]+)/i,
+    /(?:correo|email)\s+a\s+([^\s,;]+@[^\s,;]+)\s+(?:diciendo|que diga|con el texto)\s*:?\s*([\s\S]+)/i,
   ];
 
   for (const pattern of patterns) {
@@ -327,6 +438,10 @@ async function resolveActionRequest(message: string): Promise<ResolvedAction> {
 
   if (/\b(help|what can you do|supported commands)\b/i.test(normalized)) {
     return { kind: 'help' };
+  }
+
+  if (isIdentityOrGreetingRequest(normalized)) {
+    return { kind: 'identity' };
   }
 
   if (isSlackListRequest(normalized)) {
@@ -486,6 +601,7 @@ export async function POST(req: Request) {
   const latestMessage = messages[messages.length - 1];
   const latestMessageText =
     (typeof message === 'string' && message.trim()) || getLatestMessageText(latestMessage);
+  const replyLanguage = detectReplyLanguage(latestMessageText);
   const recentConversation = getRecentConversation(messages);
   const resolvedAction = await resolveActionRequest(latestMessageText);
   const classification = getClassificationForResolvedAction(resolvedAction, latestMessageText);
@@ -969,8 +1085,18 @@ export async function POST(req: Request) {
         return NextResponse.json({
           reply: await presentReply({
             userMessage: latestMessageText,
-            rawReply: formatUnknownActionResponse(resolvedAction.reason),
+            rawReply: formatUnknownActionResponse(resolvedAction.reason, replyLanguage),
             mode: 'unsupported',
+            recentMessages: recentConversation,
+          }),
+        });
+
+      case 'identity':
+        return NextResponse.json({
+          reply: await presentReply({
+            userMessage: latestMessageText,
+            rawReply: formatIdentityResponse(replyLanguage),
+            mode: 'info',
             recentMessages: recentConversation,
           }),
         });
@@ -980,7 +1106,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
           reply: await presentReply({
             userMessage: latestMessageText,
-            rawReply: formatHelpResponse(),
+            rawReply: formatHelpResponse(replyLanguage),
             mode: 'help',
             recentMessages: recentConversation,
           }),

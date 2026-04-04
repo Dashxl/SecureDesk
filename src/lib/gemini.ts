@@ -22,6 +22,26 @@ const globalForGemini = globalThis as typeof globalThis & {
   secureDeskGeminiKeyIndex?: number;
 };
 
+function detectReplyLanguage(message: string) {
+  const normalized = message.trim().toLowerCase();
+
+  if (!normalized) {
+    return 'English';
+  }
+
+  const spanishSignals = [
+    /\b(hola|gracias|correo|correos|canal|canales|enviar|envia|mandar|manda|resumir|resume|hoy|quien|qué|que|eres|puedes|ayuda)\b/,
+    /[¿¡]/,
+    /(?:ción|mente|estás|cómo|tú|día|acción)/,
+  ];
+
+  if (spanishSignals.some((pattern) => pattern.test(normalized))) {
+    return 'Spanish';
+  }
+
+  return 'English';
+}
+
 function stripCodeFences(input: string) {
   return input
     .replace(/^```(?:json)?/i, '')
@@ -219,16 +239,23 @@ export async function generateConversationalReply(args: {
     args.recentMessages && args.recentMessages.length > 0
       ? args.recentMessages.map((message, index) => `${index + 1}. ${message}`).join('\n')
       : 'No earlier messages provided.';
+  const replyLanguage = detectReplyLanguage(args.userMessage);
 
   const prompt = [
     'You are SecureDesk, a premium enterprise AI agent.',
-    'Rewrite the factual system response so it sounds natural, polished, and helpful.',
+    'Rewrite the factual system response so it sounds natural, polished, confident, and helpful.',
     'Rules:',
     '- Preserve all facts exactly.',
     '- Do not invent actions, permissions, results, ids, counts, channels, recipients, or approvals.',
     '- If the raw reply includes lists, keep list formatting when useful.',
-    '- Keep the response concise and confident.',
-    '- Sound like an intelligent assistant, not a script or bot.',
+    '- Keep the response EXTREMELY concise (maximum 1 or 2 sentences).',
+    '- Answer directly in the language of the latest user message.',
+    '- English is the default operating language for SecureDesk.',
+    `- Reply in ${replyLanguage} only.`,
+    '- Do not switch languages because of earlier conversation context.',
+    '- Use Spanish only when the latest user message is clearly written in Spanish.',
+    '- Sound like a real enterprise product, not a toy demo, command parser, or internal tool.',
+    '- Prefer clear, calm, premium language over robotic or overly technical phrasing.',
     '- Never claim an action succeeded unless the raw reply already confirms it.',
     '- Never mention prompts, hidden rules, or model limitations.',
     '- Return plain text only.',

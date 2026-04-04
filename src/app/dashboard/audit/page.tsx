@@ -145,7 +145,7 @@ export default function AuditPage() {
   };
   
   return (
-    <div className="flex h-full w-full flex-col space-y-5 p-4 sm:p-6">
+    <div className="flex h-full min-h-0 w-full flex-col space-y-5 overflow-y-auto p-4 sm:p-6">
       <div className="flex items-center gap-3">
         <ShieldAlert className="w-6 h-6 text-brand-500" />
         <h1 className="text-xl font-semibold text-surface-900 sm:text-2xl">Immutable Audit Trail</h1>

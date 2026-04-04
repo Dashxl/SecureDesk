@@ -336,7 +336,7 @@ export default async function SettingsPage({
       : 'Auth0 Connected Accounts';
 
   return (
-    <div className="flex min-h-full w-full flex-col space-y-5 p-4 sm:p-6">
+    <div className="flex h-full min-h-0 w-full flex-col space-y-5 overflow-y-auto p-4 sm:p-6">
       <div className="flex items-start gap-3">
         <Settings className="w-6 h-6 text-surface-900" />
         <div>

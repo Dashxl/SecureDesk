@@ -47,7 +47,7 @@ The product is built around a visible trust model:
 
 ### AI layer
 
-- Gemini `gemini-3-flash-preview`
+- Gemini `gemini-2.5-flash`
 - Gemini integration for natural-language intent parsing and response refinement
 - Graceful fallback to deterministic responses when Gemini is unavailable
 - Natural-language intent parsing plus response polishing, while execution remains deterministic
