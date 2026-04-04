@@ -89,52 +89,70 @@ export function getGmailConnectionName() {
   return getServiceConnectionName('gmail');
 }
 
-export async function getMyAccountApiAccessToken() {
+export async function getMyAccountApiAccessToken(options?: { refreshOnly?: boolean }) {
+  if (!options?.refreshOnly) {
+    try {
+      const { accessToken } = await auth0.getAccessToken({
+        authorizationParams: {
+          audience: getMyAccountAudience(),
+          scope: CONNECTED_ACCOUNT_SCOPES,
+        },
+      });
+
+      if (typeof accessToken === 'string' && accessToken.split('.').length === 3) {
+        return accessToken;
+      }
+    } catch (error) {
+      console.warn('Could not read the current My Account API access token from the session.', error);
+    }
+  }
+
   try {
     const { accessToken } = await auth0.getAccessToken({
       authorizationParams: {
         audience: getMyAccountAudience(),
         scope: CONNECTED_ACCOUNT_SCOPES,
       },
+      refresh: true,
     });
 
-    if (typeof accessToken === 'string' && accessToken.split('.').length === 3) {
-      return accessToken;
+    if (!accessToken) {
+      throw new Error(
+        'Unable to obtain a My Account API access token. Confirm MRRT is enabled for Auth0 My Account API and sign in again.'
+      );
     }
+
+    return accessToken;
   } catch (error) {
-    console.warn('Could not read the current My Account API access token from the session.', error);
-  }
-
-  const { accessToken } = await auth0.getAccessToken({
-    refresh: true,
-    authorizationParams: {
-      audience: getMyAccountAudience(),
-      scope: CONNECTED_ACCOUNT_SCOPES,
-    },
-  });
-
-  if (!accessToken) {
     throw new Error(
-      'Unable to obtain a My Account API access token. Confirm MRRT is enabled for Auth0 My Account API and sign in again.'
+      error instanceof Error
+        ? error.message
+        : 'Unable to obtain a My Account API access token. Confirm MRRT is enabled for Auth0 My Account API and sign in again.'
     );
   }
-
-  return accessToken;
 }
 
 async function callMyAccountApi<T>(
   endpoint: string,
   init: RequestInit & { accessToken?: string } = {}
 ): Promise<T> {
-  const accessToken = init.accessToken || (await getMyAccountApiAccessToken());
-  const response = await fetch(`${getMyAccountApiBaseUrl()}${endpoint}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-      ...(init.headers ?? {}),
-    },
-  });
+  const makeRequest = async (accessToken: string) =>
+    fetch(`${getMyAccountApiBaseUrl()}${endpoint}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        ...(init.headers ?? {}),
+      },
+    });
+
+  const initialAccessToken = init.accessToken || (await getMyAccountApiAccessToken());
+  let response = await makeRequest(initialAccessToken);
+
+  if (response.status === 401 && !init.accessToken) {
+    const refreshedAccessToken = await getMyAccountApiAccessToken({ refreshOnly: true });
+    response = await makeRequest(refreshedAccessToken);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

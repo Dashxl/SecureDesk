@@ -138,6 +138,7 @@ function ServiceStatusCard({
   statusSource,
   connectHref,
   revokeAction,
+  canRevoke = true,
   showConnectAction = true,
 }: {
   title: string;
@@ -148,6 +149,7 @@ function ServiceStatusCard({
   statusSource: string;
   connectHref: string;
   revokeAction: string;
+  canRevoke?: boolean;
   showConnectAction?: boolean;
 }) {
   return (
@@ -193,7 +195,7 @@ function ServiceStatusCard({
             {connected ? `Reconnect ${title}` : `Connect ${title}`}
           </a>
         )}
-        {connected && (
+        {connected && canRevoke && (
           <form action={revokeAction} method="post">
             <button
               type="submit"
@@ -334,6 +336,8 @@ export default async function SettingsPage({
     : effectiveGmailStatus.derivedFromObservedUsage
       ? 'Observed provider usage'
       : 'Auth0 Connected Accounts';
+  const canRevokeSlack = slackStatus.connected && slackStatus.accounts.length > 0;
+  const canRevokeGmail = gmailStatus.connected && gmailStatus.accounts.length > 0;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col space-y-5 overflow-y-auto p-4 sm:p-6">
@@ -699,6 +703,7 @@ export default async function SettingsPage({
             statusSource={slackStateSource}
             connectHref="/api/integrations/slack/connect"
             revokeAction="/api/integrations/slack/revoke"
+            canRevoke={canRevokeSlack}
             showConnectAction={!needsConnectionOnboarding}
           />
           <ServiceStatusCard
@@ -710,6 +715,7 @@ export default async function SettingsPage({
             statusSource={gmailStateSource}
             connectHref="/api/integrations/gmail/connect"
             revokeAction="/api/integrations/gmail/revoke"
+            canRevoke={canRevokeGmail}
             showConnectAction={!needsConnectionOnboarding}
           />
         </div>
@@ -727,6 +733,12 @@ export default async function SettingsPage({
           )}
           {effectiveGmailStatus.derivedFromRuntimeCheck && (
             <p>Gmail is currently shown as connected because SecureDesk confirmed a live Token Vault exchange for this user.</p>
+          )}
+          {effectiveSlackStatus.connected && !canRevokeSlack && (
+            <p>Slack is currently available to SecureDesk, but no revocable Auth0 Connected Account record was found for this user.</p>
+          )}
+          {effectiveGmailStatus.connected && !canRevokeGmail && (
+            <p>Gmail is currently available to SecureDesk, but no revocable Auth0 Connected Account record was found for this user.</p>
           )}
         </div>
       </Card>
