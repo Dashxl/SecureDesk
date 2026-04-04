@@ -59,25 +59,19 @@ export async function GET() {
   const slackAvailable =
     slackStatus.connected ||
     slackAccountStatus.connected ||
-    slackSnapshot?.status === 'connected' ||
     (isSlackPrimaryIdentity(userId) && slackStatus.connected);
-  const gmailAvailable =
-    gmailStatus.connected || gmailAccountStatus.connected || gmailSnapshot?.status === 'connected';
+  const gmailAvailable = gmailStatus.connected || gmailAccountStatus.connected;
 
   const slackSource = slackAccountStatus.connected
     ? 'connected-account'
-    : slackSnapshot?.status === 'connected'
-      ? 'observed-usage'
-      : isSlackPrimaryIdentity(userId) && slackStatus.connected
+    : isSlackPrimaryIdentity(userId) && slackStatus.connected
         ? 'slack-sign-in'
         : slackStatus.connected
           ? 'token-vault-runtime'
           : 'missing';
   const gmailSource = gmailAccountStatus.connected
     ? 'connected-account'
-    : gmailSnapshot?.status === 'connected'
-      ? 'observed-usage'
-      : gmailStatus.connected
+    : gmailStatus.connected
         ? 'token-vault-runtime'
         : 'missing';
 
@@ -86,6 +80,8 @@ export async function GET() {
     gmailConnected,
     slackAvailable,
     gmailAvailable,
+    slackObserved: slackSnapshot?.status === 'connected',
+    gmailObserved: gmailSnapshot?.status === 'connected',
     allConnected: slackConnected && gmailConnected,
     allAvailable: slackAvailable && gmailAvailable,
     slackSource,

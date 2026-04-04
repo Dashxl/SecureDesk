@@ -25,12 +25,13 @@ function deriveDisplayStatus(args: {
 }) {
   const snapshotConnected = args.snapshot?.status === 'connected';
   const runtimeConnected = args.runtimeConnected === true;
-  const available = args.connected || snapshotConnected || runtimeConnected;
+  const available = args.connected || runtimeConnected;
 
   if (available) {
     return {
       connected: args.connected,
       available,
+      observedPreviously: snapshotConnected,
       accounts:
         args.accounts.length > 0
           ? args.accounts
@@ -50,6 +51,7 @@ function deriveDisplayStatus(args: {
   return {
     connected: false,
     available: false,
+    observedPreviously: snapshotConnected,
     accounts: [],
     error: args.error || args.runtimeError || null,
     derivedFromObservedUsage: false,
@@ -174,16 +176,16 @@ function ServiceStatusCard({
           <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-surface-300 bg-surface-200 text-brand-300">
             {icon}
           </div>
-          <div>
-            <p className="text-sm font-medium text-surface-900">{title}</p>
-            <p className="text-xs text-surface-600">
-              {connected
-                ? `${connectionCount} connected account${connectionCount === 1 ? '' : 's'}`
-                : available
-                  ? 'Available through runtime'
-                  : 'No connected account'}
-            </p>
-          </div>
+                  <div>
+                    <p className="text-sm font-medium text-surface-900">{title}</p>
+                    <p className="text-xs text-surface-600">
+                      {connected
+                        ? `${connectionCount} connected account${connectionCount === 1 ? '' : 's'}`
+                        : available
+                          ? 'Available through runtime'
+                          : 'No connected account'}
+                    </p>
+                  </div>
         </div>
         <SlackConnectionPill connected={connected} available={available} />
       </div>
@@ -209,10 +211,10 @@ function ServiceStatusCard({
             href={connectHref}
             className="btn-primary inline-flex items-center justify-center px-4 py-2 text-sm"
           >
-            {connected ? `Reconnect ${title}` : `Connect ${title}`}
+            {connected || available ? `Reconnect ${title}` : `Connect ${title}`}
           </a>
         )}
-        {connected && canRevoke && (
+        {canRevoke && (
           <form action={revokeAction} method="post">
             <button
               type="submit"
@@ -302,12 +304,14 @@ export default async function SettingsPage({
           error: null,
           derivedFromObservedUsage: false,
           derivedFromRuntimeCheck: false,
+          observedPreviously: false,
           runtimeError: null,
         }
       : slackParam === 'revoked'
         ? {
             connected: false,
             available: false,
+            observedPreviously: false,
             accounts: [],
             error: null,
             derivedFromObservedUsage: false,
@@ -332,12 +336,14 @@ export default async function SettingsPage({
           error: null,
           derivedFromObservedUsage: false,
           derivedFromRuntimeCheck: false,
+          observedPreviously: false,
           runtimeError: null,
         }
       : gmailParam === 'revoked'
         ? {
             connected: false,
             available: false,
+            observedPreviously: false,
             accounts: [],
             error: null,
             derivedFromObservedUsage: false,
@@ -349,16 +355,22 @@ export default async function SettingsPage({
   const needsConnectionOnboarding = readyServicesCount < 2;
   const slackStateSource = effectiveSlackStatus.derivedFromRuntimeCheck
     ? 'Token Vault runtime check'
-    : effectiveSlackStatus.derivedFromObservedUsage
-      ? 'Observed provider usage'
-      : 'Auth0 Connected Accounts';
+    : effectiveSlackStatus.connected
+      ? 'Auth0 Connected Accounts'
+      : effectiveSlackStatus.observedPreviously
+        ? 'Historical observed usage'
+        : 'No live connection';
   const gmailStateSource = effectiveGmailStatus.derivedFromRuntimeCheck
     ? 'Token Vault runtime check'
-    : effectiveGmailStatus.derivedFromObservedUsage
-      ? 'Observed provider usage'
-      : 'Auth0 Connected Accounts';
-  const canRevokeSlack = slackStatus.connected && slackStatus.accounts.length > 0;
-  const canRevokeGmail = gmailStatus.connected && gmailStatus.accounts.length > 0;
+    : effectiveGmailStatus.connected
+      ? 'Auth0 Connected Accounts'
+      : effectiveGmailStatus.observedPreviously
+        ? 'Historical observed usage'
+        : 'No live connection';
+  const canRevokeSlack =
+    (slackStatus.connected && slackStatus.accounts.length > 0) || effectiveSlackStatus.observedPreviously;
+  const canRevokeGmail =
+    (gmailStatus.connected && gmailStatus.accounts.length > 0) || effectiveGmailStatus.observedPreviously;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col space-y-5 overflow-y-auto p-4 sm:p-6">
@@ -763,11 +775,11 @@ export default async function SettingsPage({
           {effectiveGmailStatus.derivedFromRuntimeCheck && (
             <p>Gmail is currently shown as available because SecureDesk confirmed a live Token Vault exchange for this user.</p>
           )}
-          {effectiveSlackStatus.available && !effectiveSlackStatus.connected && (
-            <p>Slack is currently available to SecureDesk, but no revocable Auth0 Connected Account record was found for this user.</p>
+          {!effectiveSlackStatus.available && effectiveSlackStatus.observedPreviously && (
+            <p>Slack had previously been observed through Token Vault, but SecureDesk can no longer confirm live access. Reconnect or revoke to clear the stale state.</p>
           )}
-          {effectiveGmailStatus.available && !effectiveGmailStatus.connected && (
-            <p>Gmail is currently available to SecureDesk, but no revocable Auth0 Connected Account record was found for this user.</p>
+          {!effectiveGmailStatus.available && effectiveGmailStatus.observedPreviously && (
+            <p>Gmail had previously been observed through Token Vault, but SecureDesk can no longer confirm live access. Reconnect or revoke to clear the stale state.</p>
           )}
         </div>
       </Card>
