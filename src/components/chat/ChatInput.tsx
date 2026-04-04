@@ -38,6 +38,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     if (input.trim() && !disabled) {
       onSend(input);
       setInput('');
+      // Dismiss keyboard on mobile after sending to show the response
+      textareaRef.current?.blur();
     }
   };
 
