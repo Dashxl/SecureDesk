@@ -9,7 +9,6 @@ interface ChatInputProps {
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [keyboardInset, setKeyboardInset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -19,33 +18,10 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   }, [input]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.visualViewport) {
-      return;
-    }
-
-    const viewport = window.visualViewport;
-
-    const updateKeyboardInset = () => {
-      const nextInset = Math.max(window.innerHeight - viewport.height - viewport.offsetTop, 0);
-      setKeyboardInset(nextInset > 120 ? nextInset : 0);
-    };
-
-    updateKeyboardInset();
-    viewport.addEventListener('resize', updateKeyboardInset);
-    viewport.addEventListener('scroll', updateKeyboardInset);
-
-    return () => {
-      viewport.removeEventListener('resize', updateKeyboardInset);
-      viewport.removeEventListener('scroll', updateKeyboardInset);
-    };
-  }, []);
-
   const handleSend = () => {
     if (input.trim() && !disabled) {
       onSend(input);
       setInput('');
-      textareaRef.current?.blur();
     }
   };
 
@@ -58,10 +34,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   return (
     <div
-      className="relative border-t border-white/10 bg-[#121a2d]/95 p-3 backdrop-blur transition-[padding-bottom] duration-200 sm:p-4"
-      style={{
-        paddingBottom: `max(${isFocused ? keyboardInset : 0}px, env(safe-area-inset-bottom))`,
-      }}
+      className="relative border-t border-white/10 bg-[#121a2d]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:p-4"
     >
       <div className="relative mx-auto flex max-w-4xl items-end gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm transition-all focus-within:border-brand-400/40 focus-within:ring-2 focus-within:ring-brand-500/20 sm:gap-3 sm:p-2.5">
         <textarea
@@ -85,8 +58,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         </button>
       </div>
       <div
-        className={`mx-auto max-w-4xl px-1 text-center text-[9px] font-medium uppercase tracking-[0.18em] text-surface-700 transition-all sm:text-[10px] sm:tracking-[0.22em] ${
-          isFocused ? 'mt-2 pb-1 opacity-0 sm:opacity-100' : 'mt-3 opacity-100'
+        className={`mx-auto hidden max-w-4xl px-1 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-surface-700 transition-all sm:block ${
+          isFocused ? 'mt-2 opacity-70' : 'mt-3 opacity-100'
         }`}
       >
         Gemini Flash intent layer | Auth0 Token Vault | Slack | Gmail | Auth0 FGA | Audit trail

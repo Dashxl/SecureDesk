@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -25,35 +24,12 @@ type ChatResponse = {
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const { messages: storeMessages, addMessage, updateMessage, setStreaming } = useChatStore();
   const { activeApprovalId, setActiveApproval, isApproving, setIsApproving } = useApprovalStore();
 
   const activeApprovalMessage = storeMessages.find(
     (message) => message.approvalId === activeApprovalId
   );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const updateViewportHeight = () => {
-      const nextHeight = window.visualViewport?.height ?? window.innerHeight;
-      setViewportHeight(nextHeight);
-    };
-
-    updateViewportHeight();
-    window.visualViewport?.addEventListener('resize', updateViewportHeight);
-    window.visualViewport?.addEventListener('scroll', updateViewportHeight);
-    window.addEventListener('orientationchange', updateViewportHeight);
-
-    return () => {
-      window.visualViewport?.removeEventListener('resize', updateViewportHeight);
-      window.visualViewport?.removeEventListener('scroll', updateViewportHeight);
-      window.removeEventListener('orientationchange', updateViewportHeight);
-    };
-  }, []);
 
   async function pollCibaApproval(args: {
     approvalId: string;
@@ -310,10 +286,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div
-      className="relative mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden"
-      style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
-    >
+    <div className="relative mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden">
       <div className="shrink-0 flex flex-col gap-4 border-b border-white/10 bg-[#121a2d]/82 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#202857]">
@@ -343,7 +316,7 @@ export default function DashboardPage() {
         <ChatPanel userPic={user?.picture} userName={user?.name || undefined} />
       </div>
 
-      <div className="mt-auto shrink-0 md:static sticky bottom-0 z-20">
+      <div className="mt-auto shrink-0">
         <ChatInput onSend={handleSend} disabled={isLoading || isApproving || !!activeApprovalId} />
       </div>
 
