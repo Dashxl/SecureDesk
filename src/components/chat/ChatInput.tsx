@@ -72,7 +72,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder="Ask SecureDesk to read Slack, summarize today's email, or prepare a reviewed write action..."
-          className="min-h-[44px] max-h-32 flex-1 resize-none bg-transparent p-2 text-[14px] leading-6 text-surface-950 outline-none placeholder:text-surface-700 sm:text-[15px]"
+          className="min-h-[44px] max-h-32 flex-1 resize-none bg-transparent p-2 text-[16px] leading-6 text-surface-950 outline-none placeholder:text-surface-700"
           disabled={disabled}
           rows={1}
         />
