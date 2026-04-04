@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { SendHorizontal } from 'lucide-react';
+import { useVisualViewport } from '@/hooks/use-visual-viewport';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -9,9 +10,22 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
+  const { isKeyboardOpen, height: vvHeight } = useVisualViewport();
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Heuristic for mobile: only apply dynamic margin if we're on a likely touch device.
+  // We use the visual viewport height to maintain a stable bottom gap.
+  const dynamicPaddingStyle = useMemo(() => {
+    if (typeof window === 'undefined' || !isKeyboardOpen) return {};
+    
+    // On iOS Safari, the visual viewport height decreases when the keyboard is open.
+    // However, if the keyboard is overlaying, we might need a small push.
+    return {
+      marginBottom: 'env(safe-area-inset-bottom)',
+    } as React.CSSProperties;
+  }, [isKeyboardOpen]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -37,6 +51,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   return (
     <div
       className="relative shrink-0 border-t border-white/10 bg-[#121a2d]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur touch-manipulation sm:p-4"
+      style={dynamicPaddingStyle}
     >
       <div className="relative mx-auto flex max-w-4xl items-end gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm transition-all focus-within:border-brand-400/40 focus-within:ring-2 focus-within:ring-brand-500/20 sm:gap-3 sm:p-2.5">
         <textarea

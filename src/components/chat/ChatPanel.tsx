@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { ChatMessage as ChatMessageComponent } from './ChatMessage';
 import { useChatStore } from '@/store/chat-store';
 import { StreamingIndicator } from './StreamingIndicator';
-import { useVisualViewport } from '@/hooks/use-visual-viewport';
 
 export function ChatPanel({
   userPic,
@@ -15,7 +14,6 @@ export function ChatPanel({
   userName?: string;
 }) {
   const { messages, isStreaming } = useChatStore();
-  const { height: viewportHeight } = useVisualViewport();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [integrationStatus, setIntegrationStatus] = useState<{
     shouldShowOnboarding: boolean;
@@ -56,7 +54,7 @@ export function ChatPanel({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [messages.length, isStreaming, viewportHeight]);
+  }, [messages.length, isStreaming]);
 
   useEffect(() => {
     if (messages.length > 0) {
