@@ -64,9 +64,11 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
-            // Reset the scroll position after blurring to prevent the input from
-            // floating in the middle of the screen on iOS Safari.
-            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            // Delay the scroll reset slightly to allow any clicks (like the Send button)
+            // to register before the layout shifts.
+            setTimeout(() => {
+              window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            }, 100);
           }}
           placeholder="Ask SecureDesk to read Slack, summarize today's email, or prepare a reviewed write action..."
           className="min-h-[44px] max-h-32 flex-1 resize-none bg-transparent p-2 text-[16px] leading-6 text-surface-950 outline-none placeholder:text-surface-700"
@@ -75,6 +77,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         />
         <button
           onClick={handleSend}
+          onMouseDown={(e) => e.preventDefault()}
           disabled={!input.trim() || disabled}
           className="mb-0.5 shrink-0 rounded-xl border border-brand-400/20 bg-brand-500/15 p-2.5 text-brand-100 transition-all hover:bg-brand-500/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
