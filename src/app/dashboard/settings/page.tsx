@@ -103,7 +103,7 @@ function TechnicalDisclosure({
 }) {
   return (
     <details className="group rounded-2xl border border-surface-300 bg-surface-100/40">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+      <summary className="flex cursor-pointer list-none flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5">
         <div>
           <p className="text-sm font-medium text-white">{title}</p>
           <p className="mt-1 text-xs leading-6 text-surface-600">{summary}</p>
@@ -169,7 +169,7 @@ function ServiceStatusCard({
         <SlackConnectionPill connected={connected} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 text-xs">
+      <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
         <div className="rounded-lg border border-surface-300 bg-surface-100/40 px-3 py-2">
           <div className="uppercase tracking-[0.18em] text-surface-600">Observed refresh</div>
           <div className="mt-2 text-sm text-white">
@@ -336,11 +336,11 @@ export default async function SettingsPage({
       : 'Auth0 Connected Accounts';
 
   return (
-    <div className="flex flex-col min-h-full w-full p-6 space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="flex min-h-full w-full flex-col space-y-5 p-4 sm:p-6">
+      <div className="flex items-start gap-3">
         <Settings className="w-6 h-6 text-surface-900" />
         <div>
-          <h1 className="text-2xl font-semibold text-surface-900">Settings & Integrations</h1>
+          <h1 className="text-xl font-semibold text-surface-900 sm:text-2xl">Settings & Integrations</h1>
             <p className="text-sm text-surface-600 mt-1">
               This page is the live control surface for SecureDesk. Slack and Gmail are connected through
               Auth0 Token Vault, and SecureDesk surfaces the exact security state used by the runtime.
@@ -467,7 +467,7 @@ export default async function SettingsPage({
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -638,7 +638,7 @@ export default async function SettingsPage({
               ]}
             />
 
-            <pre className="overflow-x-auto rounded-xl border border-surface-300 bg-surface-100/50 p-4 text-xs text-surface-600">
+            <pre className="overflow-x-auto rounded-xl border border-surface-300 bg-surface-100/50 p-4 text-[11px] text-surface-600">
 {getRecommendedFgaModel()}
             </pre>
 
@@ -646,7 +646,7 @@ export default async function SettingsPage({
               <p>Current Auth0 subject: {currentUserId || 'Sign in to reveal your subject.'}</p>
               <p>Recommended tuple entries:</p>
               {fgaTuples.length > 0 ? (
-                <pre className="overflow-x-auto whitespace-pre-wrap text-[11px] leading-6">
+                <pre className="overflow-x-auto whitespace-pre-wrap break-words text-[11px] leading-6">
                   {fgaTuples.join('\n')}
                 </pre>
               ) : (
@@ -689,7 +689,7 @@ export default async function SettingsPage({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ServiceStatusCard
             title="Slack"
             icon={<Slack className="h-5 w-5" />}

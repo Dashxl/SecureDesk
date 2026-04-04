@@ -7,7 +7,8 @@ This guide matches the current SecureDesk implementation:
 - real Gmail Connected Account through Token Vault
 - Auth0 FGA enforcement
 - CIBA support with in-app review fallback
-- Gemini Flash intent parsing on top of the deterministic runtime
+- Gemini `gemini-3-flash-preview` for intent parsing and response polishing on top of the deterministic runtime
+- persistent audit logs and approval sessions stored in Postgres
 
 ## 1. Create the Regular Web Application
 
@@ -183,14 +184,36 @@ If the tenant does not expose CIBA, SecureDesk will continue to work through the
 
 ## 10. Gemini Flash
 
-SecureDesk uses Gemini Flash only for intent parsing. It does not replace the deterministic runtime.
+SecureDesk uses Gemini as the conversational layer. It can interpret requests and refine replies, but it does not replace the deterministic execution runtime.
 
 Add to `.env.local`:
 
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL=gemini-2.0-flash`
+- `GEMINI_API_KEY_1`
+- `GEMINI_API_KEY_2`
+- `GEMINI_API_KEY_3`
+- `GEMINI_API_KEY_4`
+- `GEMINI_MODEL=gemini-3-flash-preview`
 
-## 11. Local environment reminder
+If only one key is available, fill `GEMINI_API_KEY_1` and leave the others empty.
+
+## 11. Configure Postgres persistence
+
+SecureDesk persists audit events and approval sessions in Postgres.
+
+Recommended setup:
+
+1. Link a Neon database to the Vercel project through `Storage`
+2. Confirm Vercel injected:
+   - `POSTGRES_URL`
+   - `POSTGRES_PRISMA_URL`
+   - `POSTGRES_URL_NON_POOLING`
+3. For local development, pull those variables into `.env.local`
+4. Start the app and open:
+   - `GET /api/migrate`
+
+That route creates the `audit_logs` and `approval_sessions` tables used by the Trust Center and approval runtime.
+
+## 12. Local environment reminder
 
 `AUTH0_ISSUER_BASE_URL` must be the tenant root.
 
@@ -202,7 +225,7 @@ Incorrect:
 
 `https://YOUR_TENANT.us.auth0.com/api/v2/`
 
-## 12. Final verification
+## 13. Final verification
 
 Before recording:
 
@@ -216,4 +239,6 @@ Before recording:
    - `Summarize my emails from today`
    - `Send an email to teammate@example.com saying: Hello from SecureDesk`
 5. Open `Audit Log`
-6. Export CSV
+6. Confirm the Trust Center shows live events
+7. Refresh and verify the audit entries persist
+8. Export CSV

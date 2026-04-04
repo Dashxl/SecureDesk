@@ -144,7 +144,7 @@ export async function queryDb<T extends QueryResultRow = QueryResultRow>(
 export async function runCoreMigrations() {
   if (!isPostgresConfigured()) {
     throw new Error(
-      'Postgres is not configured. Link a Vercel Postgres database or add a local Postgres connection string.'
+      'Postgres is not configured. Link a Neon Postgres database through Vercel Storage or add a local Postgres connection string.'
     );
   }
 

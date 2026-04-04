@@ -5,7 +5,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'SecureDesk - Corporate AI Assistant',
-  description: 'AI agent acting securely on your behalf using Auth0 Token Vault, CIBA, and FGA.',
+  description:
+    'Secure enterprise AI agent for Slack and Gmail using Auth0 Token Vault, Auth0 FGA, CIBA / Guardian, Gemini Flash, and Postgres-backed auditability.',
 };
 
 export default function RootLayout({

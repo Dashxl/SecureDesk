@@ -287,26 +287,26 @@ export default function DashboardPage() {
 
   return (
     <div className="relative mx-auto flex h-full w-full flex-col">
-      <div className="flex items-center justify-between border-b border-white/10 bg-[#121a2d]/82 p-4 backdrop-blur">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-4 border-b border-white/10 bg-[#121a2d]/82 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#202857]">
             <Image src={LogoMark} alt="SecureDesk mark" className="h-11 w-11 object-cover" />
           </div>
-          <div>
-            <h1 className="font-display text-xl font-bold text-white">SecureDesk Workspace</h1>
-            <p className="text-xs uppercase tracking-[0.24em] text-surface-700">
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-lg font-bold text-white sm:text-xl">SecureDesk Workspace</h1>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-surface-700 sm:text-xs">
               Delegated actions with visible trust boundaries
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
           <Link
             href="/dashboard/settings"
-            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold tracking-[0.18em] text-surface-600 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-semibold tracking-[0.16em] text-surface-600 transition hover:border-white/20 hover:bg-white/10 hover:text-white sm:px-4 sm:text-xs"
           >
             Connect Apps
           </Link>
-          <div className="rounded-full border border-brand-400/20 bg-brand-500/15 px-3 py-1.5 font-mono text-xs tracking-wide text-brand-100">
+          <div className="rounded-full border border-brand-400/20 bg-brand-500/15 px-3 py-1.5 font-mono text-[11px] tracking-wide text-brand-100 sm:text-xs">
             Policy Runtime Active
           </div>
         </div>

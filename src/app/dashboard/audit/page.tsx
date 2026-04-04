@@ -145,10 +145,10 @@ export default function AuditPage() {
   };
   
   return (
-    <div className="flex flex-col h-full w-full p-6 space-y-6">
+    <div className="flex h-full w-full flex-col space-y-5 p-4 sm:p-6">
       <div className="flex items-center gap-3">
         <ShieldAlert className="w-6 h-6 text-brand-500" />
-        <h1 className="text-2xl font-semibold text-surface-900">Immutable Audit Trail</h1>
+        <h1 className="text-xl font-semibold text-surface-900 sm:text-2xl">Immutable Audit Trail</h1>
       </div>
       <p className="text-surface-600 max-w-2xl">
         Every action taken by SecureDesk is logged with timestamps, risk level, status, and approval
@@ -156,7 +156,7 @@ export default function AuditPage() {
         or export the history.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-surface-300 bg-surface-100/60 p-4">
           <p className="text-xs uppercase tracking-wide text-surface-600">Total</p>
           <p className="mt-2 text-2xl font-semibold text-surface-900">{counts.total}</p>
@@ -175,11 +175,11 @@ export default function AuditPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <select
           value={filterService ?? ''}
           onChange={(event) => setFilterService(event.target.value || null)}
-          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900"
+          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900 sm:min-w-[10rem]"
         >
           <option value="">All services</option>
           <option value="slack">Slack</option>
@@ -188,7 +188,7 @@ export default function AuditPage() {
         <select
           value={filterRiskType ?? ''}
           onChange={(event) => setFilterRiskType(event.target.value || null)}
-          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900"
+          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900 sm:min-w-[10rem]"
         >
           <option value="">All risk levels</option>
           <option value="low">Low risk</option>
@@ -197,7 +197,7 @@ export default function AuditPage() {
         <select
           value={filterStatus ?? ''}
           onChange={(event) => setFilterStatus(event.target.value || null)}
-          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900"
+          className="rounded-xl border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-900 sm:min-w-[10rem]"
         >
           <option value="">All statuses</option>
           <option value="pending">Pending</option>
@@ -210,7 +210,7 @@ export default function AuditPage() {
           type="button"
           onClick={exportCsv}
           disabled={filteredLogs.length === 0}
-          className="rounded-xl border border-surface-300 bg-surface-100 px-4 py-2 text-sm font-medium text-surface-900 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-xl border border-surface-300 bg-surface-100 px-4 py-2 text-sm font-medium text-surface-900 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           Export CSV
         </button>

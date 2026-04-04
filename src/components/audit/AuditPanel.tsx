@@ -56,7 +56,7 @@ export function AuditPanel() {
   });
 
   return (
-    <div className="hidden h-full w-96 shrink-0 flex-col overflow-hidden bg-[#11192B] px-4 py-4 shadow-[-18px_0_40px_rgba(5,8,18,0.18)] lg:flex">
+    <div className="hidden h-full w-80 shrink-0 flex-col overflow-hidden bg-[#11192B] px-4 py-4 shadow-[-18px_0_40px_rgba(5,8,18,0.18)] xl:flex 2xl:w-96">
       <div className="mb-4 rounded-[1.35rem] border border-white/8 bg-[#1a2040] px-4 py-3 shadow-[0_16px_36px_rgba(4,7,17,0.18)]">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-white/10 bg-[#202857]">

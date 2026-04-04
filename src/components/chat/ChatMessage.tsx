@@ -12,16 +12,16 @@ export function ChatMessage({ message, userPic, userName }: { message: ChatMessa
   const { setActiveApproval } = useApprovalStore();
 
   return (
-    <div className={`flex gap-4 w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex w-full gap-2 sm:gap-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
         <div className="shrink-0 pt-1">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-lg">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg sm:h-8 sm:w-8">
             <Bot className="w-4 h-4" />
           </div>
         </div>
       )}
 
-      <div className={`flex flex-col max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
+      <div className={`flex max-w-[92%] flex-col sm:max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
         <div className="flex items-center gap-2 mb-1.5 px-1">
           <span className="text-xs font-semibold text-surface-600">
             {isUser ? (userName || 'You') : 'SecureDesk Agent'}
@@ -32,13 +32,13 @@ export function ChatMessage({ message, userPic, userName }: { message: ChatMessa
         </div>
 
         <div className={`
-          relative px-5 py-3.5 text-[15px] leading-relaxed
+          relative px-4 py-3 text-[14px] leading-relaxed sm:px-5 sm:py-3.5 sm:text-[15px]
           ${isUser 
             ? 'bg-brand-600 text-white rounded-2xl rounded-tr-sm shadow-md' 
             : 'bg-surface-200 text-surface-950 border border-surface-300 rounded-2xl rounded-tl-sm shadow-sm'
           }
         `}>
-          <div className="prose prose-sm dark:prose-invert max-w-none">
+          <div className="prose prose-sm dark:prose-invert max-w-none break-words">
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
           
@@ -73,7 +73,7 @@ export function ChatMessage({ message, userPic, userName }: { message: ChatMessa
       </div>
 
       {isUser && (
-        <div className="shrink-0 pt-1">
+        <div className="hidden shrink-0 pt-1 sm:block">
           <Avatar src={userPic} name={userName || 'User'} className="shadow-lg" />
         </div>
       )}

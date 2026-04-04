@@ -32,15 +32,15 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="relative border-t border-white/10 bg-[#121a2d]/90 p-4 backdrop-blur">
-      <div className="relative mx-auto flex max-w-4xl items-end gap-3 rounded-2xl border border-white/10 bg-white/5 p-2.5 shadow-sm transition-all focus-within:border-brand-400/40 focus-within:ring-2 focus-within:ring-brand-500/20">
+    <div className="relative border-t border-white/10 bg-[#121a2d]/90 p-3 backdrop-blur sm:p-4">
+      <div className="relative mx-auto flex max-w-4xl items-end gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm transition-all focus-within:border-brand-400/40 focus-within:ring-2 focus-within:ring-brand-500/20 sm:gap-3 sm:p-2.5">
         <textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask SecureDesk to read Slack, summarize today's email, or prepare a reviewed write action..."
-          className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent p-2 text-[15px] text-surface-950 outline-none placeholder:text-surface-700"
+          className="min-h-[44px] max-h-32 flex-1 resize-none bg-transparent p-2 text-[14px] text-surface-950 outline-none placeholder:text-surface-700 sm:text-[15px]"
           disabled={disabled}
           rows={1}
         />
@@ -52,7 +52,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           <SendHorizontal className="h-5 w-5" />
         </button>
       </div>
-      <div className="mx-auto mt-3 max-w-4xl text-center text-[10px] font-medium uppercase tracking-[0.22em] text-surface-700">
+      <div className="mx-auto mt-3 max-w-4xl px-1 text-center text-[9px] font-medium uppercase tracking-[0.18em] text-surface-700 sm:text-[10px] sm:tracking-[0.22em]">
         Gemini Flash intent layer | Auth0 Token Vault | Slack | Gmail | Auth0 FGA | Audit trail
       </div>
     </div>

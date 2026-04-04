@@ -101,7 +101,8 @@ function formatHelpResponse() {
     '- `List my unread emails`',
     '- `Summarize my emails from today`',
     '- `Send an email to teammate@example.com saying: Hello from SecureDesk`',
-    'Slack and Gmail run through Auth0 Token Vault. Auth0 FGA governs tool access. High-impact actions pause for explicit approval before SecureDesk proceeds.',
+    'Slack and Gmail run through Auth0 Token Vault. Auth0 FGA governs tool access. High-impact actions pause for explicit approval before SecureDesk proceeds, and audit plus approval state persist in Postgres.',
+    'Gemini helps SecureDesk understand and refine the conversation, but the execution layer remains deterministic.',
   ].join('\n\n');
 }
 

@@ -6,8 +6,8 @@ import LogoWordmark from '@/app/img/Logo4.jpg';
 
 const proofPoints = [
   'Auth0 Token Vault for delegated provider tokens',
-  'Fine-grained authorization by tool and user',
-  'Explicit approval before high-risk actions',
+  'Auth0 FGA enforcement for every tool action',
+  'Persistent approvals and audit trail in Neon Postgres',
 ];
 
 const featureCards = [
@@ -19,13 +19,13 @@ const featureCards = [
   },
   {
     title: 'Approval Boundaries',
-    body: 'Reads can flow immediately. Writes pause for explicit user approval before data leaves the assistant.',
+    body: 'Reads can flow immediately. Writes pause for explicit user approval through CIBA / Guardian or the in-product review boundary.',
     icon: ShieldCheck,
     tint: 'text-white',
   },
   {
-    title: 'Live Audit Trail',
-    body: 'Every meaningful action is logged with risk, status, timestamp, and execution context for judges to inspect.',
+    title: 'Persistent Trust Trail',
+    body: 'Every meaningful action and approval session is stored in Postgres with risk, status, timestamp, and execution context.',
     icon: Activity,
     tint: 'text-brand-200',
   },
@@ -47,12 +47,12 @@ export default async function LandingPage() {
       <div className="brand-grid absolute inset-0 opacity-30" />
 
       <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-8 lg:px-10">
-        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
           <div className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-[#202857] shadow-[0_20px_48px_rgba(4,7,17,0.28)]">
             <Image src={LogoWordmark} alt="SecureDesk" className="h-14 w-auto object-contain" priority />
           </div>
           <div className="hidden rounded-full border border-brand-400/30 bg-brand-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-brand-200 md:block">
-            Authorized to Act Demo
+            Authorized to Act Build
           </div>
         </div>
 
@@ -85,7 +85,7 @@ export default async function LandingPage() {
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-4 py-2 text-sm font-medium text-brand-100">
               <Bot className="h-4 w-4" />
-              Secure enterprise agent with visible security boundaries
+              Secure enterprise agent with delegated actions, policy checks, and persistent trust records
             </div>
 
             <h1 className="font-display text-5xl font-bold leading-[0.95] tracking-[-0.04em] text-white md:text-7xl">
@@ -95,8 +95,9 @@ export default async function LandingPage() {
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-surface-700 md:text-xl">
-              SecureDesk lets a real user act through AI while keeping credentials in Auth0 Token Vault,
-              enforcing approval on risky steps, and recording every action in an auditable trail.
+              SecureDesk lets a real user operate through AI across Slack and Gmail while keeping
+              credentials in Auth0 Token Vault, enforcing Auth0 FGA, requiring approval on risky
+              steps, and recording every action in a persistent audit trail backed by Postgres.
             </p>
 
             {!authConfigured && (
@@ -148,10 +149,10 @@ export default async function LandingPage() {
                   <div className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-200">
                     SecureDesk Control Plane
                   </div>
-                  <div className="mt-2 font-display text-2xl font-bold text-white">Token Vault + FGA + Audit</div>
+                  <div className="mt-2 font-display text-2xl font-bold text-white">Token Vault + FGA + CIBA + Postgres</div>
                 </div>
                 <div className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
-                  Live Slack Path
+                  Live Slack + Gmail Runtime
                 </div>
               </div>
 
@@ -166,12 +167,12 @@ export default async function LandingPage() {
                   <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
                     <div className="text-xs uppercase tracking-[0.22em] text-surface-700">Low Risk</div>
                     <div className="mt-2 text-lg font-semibold text-white">Read Slack Channels</div>
-                    <div className="mt-1 text-sm text-surface-700">Direct execution through delegated access.</div>
+                    <div className="mt-1 text-sm text-surface-700">Direct execution through delegated access and FGA policy checks.</div>
                   </div>
                   <div className="rounded-2xl border border-brand-400/20 bg-brand-500/10 p-4">
                     <div className="text-xs uppercase tracking-[0.22em] text-brand-200">High Risk</div>
-                    <div className="mt-2 text-lg font-semibold text-white">Post to Slack</div>
-                    <div className="mt-1 text-sm text-surface-800">Approval gate + audit event before execution.</div>
+                    <div className="mt-2 text-lg font-semibold text-white">Post to Slack or send Gmail</div>
+                    <div className="mt-1 text-sm text-surface-800">Approval gate, persistent review state, and audit event before execution.</div>
                   </div>
                 </div>
               </div>
